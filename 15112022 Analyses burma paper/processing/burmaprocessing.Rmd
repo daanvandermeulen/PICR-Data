@@ -1,0 +1,472 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+author: "Daan"
+date: "31/01/2022"
+output: word_document
+---
+
+
+
+r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+
+## R Markdown
+
+
+Reading in data
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list = ls())
+
+
+
+
+
+library(dplyr)
+
+library(rms)
+library(Hmisc)
+library(dplyr)
+
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(tidyr)
+library(viridis)
+
+library(naniar)
+
+library(plyr)
+library(readxl)
+d1 <- read.csv("../data/raw/data_survey1Burma.csv", sep= ',',  stringsAsFactors=FALSE, na.strings="")
+
+d1= d1%>% mutate(wave= rep("wave1", NROW(d1)))
+
+
+d2 = read.csv("../data/raw/wave2.csv", sep= ',',  stringsAsFactors=FALSE, na.strings="")
+
+d2= d2%>% mutate(wave= rep("wave2", NROW(d2)))
+
+d3= read.csv("../data/raw/survey3.csv", na.strings="")
+
+d3= d3%>% mutate(wave= rep("wave3", NROW(d3)))
+
+
+
+xld3= read_excel("../data/raw/excelsurvey3.xlsx")
+
+
+
+
+```
+
+#Make variables per wave
+
+##religion
+
+In Wave 3, the variable was slightly changed throughout the data collection, therefore both variables are merged.
+```{r, echo=FALSE}
+
+
+
+#wave 1
+d1$religion=  d1$q03_religion
+d1$buddhist= ifelse(d1$religion== "buddhist",1,0)
+d1$muslim= ifelse(d1$religion== "muslim",1,0)
+d1$christian= ifelse(d1$religion== "christian",1,0)
+d1$hindu= ifelse(d1$religion== "hindu",1,0)
+d1$religionother= ifelse(d1$religion=="other",1,0)
+
+#wave 2
+d2$religion= dplyr::recode(as.character(d2$q02_religion), "1"="buddhist","2" = "muslim", "3" = "hindu", "4" = "christian",  "5" = "other", "6" = "dont_identify")
+d2$buddhist= ifelse(d2$religion== "buddhist",1,0)
+d2$muslim= ifelse(d2$religion== "muslim",1,0)
+d2$christian= ifelse(d2$religion== "christian",1,0)
+d2$hindu= ifelse(d2$religion== "hindu",1,0)
+d2$religionother= ifelse(d2$religion=="other",1,0)
+
+#wave 3
+d3$buddhist1= ifelse(xld3$q02v2_religion_ethgrp_buddhist=="yes",1,0)
+d3$buddhist2= ifelse(xld3$q02_religion_ethnicgrp_buddhist== "yes", 1,0)
+d3$buddhist= rowMeans(d3[,c("buddhist1","buddhist2")], na.rm=TRUE)
+d3$muslim1= ifelse(xld3$q02v2_religion_ethgrp_muslim=="yes",1,0)
+d3$muslim2= ifelse(xld3$q02_religion_ethnicgrp_muslim== "yes", 1,0)
+d3$muslim= rowMeans(d3[,c("muslim1","muslim2")], na.rm=TRUE)
+d3$hindu1= ifelse(xld3$q02v2_religion_ethgrp_hindu=="yes",1,0)
+d3$hindu2= ifelse(xld3$q02_religion_ethnicgrp_hindu== "yes", 1,0)
+d3$hindu= rowMeans(d3[,c("hindu1","hindu2")], na.rm=TRUE)
+d3$christian1= ifelse(xld3$q02v2_religion_ethgrp_christian=="yes",1,0)
+d3$christian2= ifelse(xld3$q02_religion_ethnicgrp_christian== "yes", 1,0)
+d3$christian= rowMeans(d3[,c("christian1","christian2")], na.rm=TRUE)
+d3$other1= ifelse(xld3$q02_religion_ethnicgrp_other_religion=="yes",1,0)
+d3$other2= ifelse(xld3$q02v2_religion_ethgrp_other_religion== "yes", 1,0)
+d3$religionother= rowMeans(d3[,c("other1","other2")], na.rm=TRUE)
+
+```
+
+##ethnicity wave 3
+```{r}
+
+d3$bamar1= ifelse(xld3$q02v2_religion_ethgrp_bamar=="yes",1,0)
+d3$bamar2= ifelse(xld3$q02_religion_ethnicgrp_bamar== "yes", 1,0)
+d3$bamar= rowMeans(d3[,c("bamar1","bamar2")], na.rm=TRUE)
+d3$kachin= ifelse(d3$q02a_which_ethnicity == "kachin",1,0)
+d3$kayah= ifelse(d3$q02a_which_ethnicity == "kayah",1,0)
+d3$karen= ifelse(d3$q02a_which_ethnicity == "karen",1,0)
+d3$chin= ifelse(d3$q02a_which_ethnicity == "chin",1,0)
+d3$mon= ifelse(d3$q02a_which_ethnicity == "mon",1,0)
+d3$rakhine= ifelse(d3$q02a_which_ethnicity == "rakhine",1,0)
+d3$shan= ifelse(d3$q02a_which_ethnicity == "shan",1,0)
+
+```
+
+##Residence
+```{r}
+
+
+#residence
+d1$res= dplyr::recode(as.factor(as.character(d1$q13_live)), "city"="City","town" = "Town", "rural_place" = "Village", "village"="Village")
+d2$res= dplyr::recode(as.factor(as.character(d2$q24_living_area)), "1"="City","2" = "Town", "3" = "Village")
+
+d3$res= dplyr::recode(as.factor(as.character(d3$q24_living_area)), "1"="City","2" = "Town", "3" = "Village")
+
+```
+
+##preference of democracy (W2 & W3) and influence of China/ American (W2)
+This is not used in the main analysis
+```{r}
+
+d2$dembest= ifelse(d2$q23_agree_democracy==1,1,0)
+d3$dembest= ifelse(d3$q23_agree_democracy==1,1,0)
+
+d2$chininf= ifelse(d2$q25_countries_influence==1,1,0)
+d2$usmod= ifelse(d2$q26_countries_future_dev==2,1,0)
+```
+
+## Perceived Muslim threat
+
+
+
+```{r}
+
+# wave 1
+d1= d1%>% 
+  dplyr:: mutate(muslims_threat= q15b_muslims_threat,
+                 muslims_threatcom= q15b_muslims_threat, mus_threat= 6-muslims_threat, mus_threatcom= 6-muslims_threat)
+
+# wave 2
+d2= d2%>% 
+  dplyr:: mutate(muslims_threat= q05b_muslims_threat,
+                 muslims_threatcon= q05b_muslims_threat,mus_threat= 6-muslims_threat, mus_threatcom= 6-muslims_threat)
+
+
+#wave 3
+d3$muslims_threat= d3$q05b_muslims_threat
+d3$muslims_threat2= d3$q07b_muslims_resources
+d3$muslims_threatcom=rowMeans(data.frame(d3$muslims_threat,d3$muslims_threat2), na.rm=TRUE)
+d3$mus_threat= 6-d3$muslims_threat
+d3$mus_threatcom= 6-d3$muslims_threatcom
+d3$mus_threatnew= 6-d3$q07b_muslims_resources
+
+d3$rohingya_threat= d3$q05c_rohingya_threat
+d3$rohingya_threat2 = d3$q07c_rohingya_resources
+d3$rohingya_threatcom = rowMeans(data.frame(d3$q07c_rohingya_resources,d3$q05c_rohingya_threat), na.rm=TRUE)
+```
+
+##Muslim contribution
+
+```{r}
+#wave 1
+d1$muslims_contribute= d1$q16b_muslims_contribute
+d1$mus_cont = 6-d1$muslims_contribute
+
+#wave 2
+d2$muslims_contribute= d2$q06b_muslims_contribute
+d2$mus_cont = 6-d2$muslims_contribute
+
+#wave3
+d3$muslims_contribute= d3$q06b_muslims_contribute
+d3$mus_cont = 6-d3$muslims_contribute
+
+```
+
+##minority threat
+
+
+```{r}
+
+#wave1
+d1$minorities_threat = d1$q15a_minorities_threat
+d1$minorities_threatcom = d1$q15a_minorities_threat
+d1$minorities_threatnew = d1$q15a_minorities_threat
+d1$minorities_threatcomnew = d1$q15a_minorities_threat
+
+d1$min_threat= 6-d1$minorities_threat
+d1$min_threatnew= 6-d1$minorities_threat
+d1$min_threatcom= 6-d1$minorities_threatcom
+d1$min_threatcomnew= 6-d1$minorities_threatcom
+
+#wave2
+d2$minorities_threat = d2$q05a_minorities_threat
+d2$minorities_threatcom = d2$q05a_minorities_threat
+d2$minorities_threatnew = d2$q05a_minorities_threat
+d2$minorities_threatcomnew = d2$q05a_minorities_threat
+
+d2$min_threat= 6-d2$minorities_threat
+d2$min_threatnew= 6-d2$minorities_threat
+d2$min_threatcom= 6-d2$minorities_threatcom
+d2$min_threatcomnew= 6-d2$minorities_threatcom
+
+#wave3
+d3$minorities_threat= d3$q05a_minorities_threat
+d3$minorities_threatnew= ifelse(is.na(d3$q05a_minorities_threat)==TRUE, d3$q05a_minorities_threat_new, d3$q05a_minorities_threat)
+d3$minorities_threat2= d3$q07a_minorities_resources
+d3$minorities_threat2new= ifelse(is.na(d3$q07a_minorities_resources)==TRUE, d3$q07a_minorities_resources_new, d3$q07a_minorities_resources)
+d3$minorities_threatcom = rowMeans(data.frame(d3$minorities_threat,d3$minorities_threat2), na.rm=TRUE)
+d3$minorities_threatcomnew = rowMeans(data.frame(d3$minorities_threatnew,d3$minorities_threat2new), na.rm=TRUE)
+
+d3$min_threat= 6-d3$minorities_threat
+d3$min_threatnew= 6-d3$minorities_threat
+d3$min_threatcom= 6-d3$minorities_threatcom
+d3$min_threatcomnew= 6-d3$minorities_threatcom
+
+psych::alpha(data.frame(d3$minorities_threat,d3$minorities_threat2))
+d3$minorities_threat=rowMeans(data.frame(d3$minorities_threat,d3$minorities_threat2), na.rm=TRUE)
+
+```
+
+
+##minority contribution
+
+Not used in main analysis.
+```{r}
+
+d1$minorities_contribute= d1$q16a_minorities_contribute
+d1$minorities_contributenew= d1$q16a_minorities_contribute
+d1$min_cont = 6-d1$minorities_contribute
+d1$min_contnew = 6-d1$minorities_contributenew
+
+d2$minorities_contribute= d2$q06a_minorities_contribute
+d2$minorities_contributenew= d2$q06a_minorities_contribute
+d2$min_cont = 6-d2$minorities_contribute
+d2$min_contnew = 6-d2$minorities_contributenew
+
+
+d3$minorities_contributenew = d3$q06a_minorities_contribute
+d3$minorities_contribute= ifelse(is.na(d3$q06a_minorities_contribute)==TRUE, d3$q06a_minorities_contribute_new, d3$q06a_minorities_contribute)
+d3$min_cont = 6-d3$minorities_contribute
+d3$min_contnew = 6-d3$minorities_contributenew
+
+```
+
+
+# support for protests per ethnic group
+```{r}
+
+d1$q18_supportive1= ifelse (d1$q18_supportive== "", NA, d1$q18_supportive)
+
+d1$q18_supportiveN = as.numeric(dplyr::recode(d1$q18_supportive, not_at_all_supportive="1",not_very_supportive = "2", somewhat_supportive = "3", very_supportive = "4"))
+
+
+d1$q17_support_buddhists_protest= ifelse (d1$q18_supportiveN>0& d1$ethnic_group_q18 =="buddhists",d1$q18_supportiveN, NA)
+
+d1$q17_support_rohingya_protest= ifelse (d1$q18_supportiveN>0& d1$ethnic_group_q18 =="rohingya",d1$q18_supportiveN, NA)
+  
+ d1$q17_support_muslims_protest= ifelse (d1$q18_supportiveN>0& d1$ethnic_group_q18 =="muslims",d1$q18_supportiveN, NA)
+   
+d2$yangon = ifelse( d2$city== "Yangon",1,0)
+
+d3$yangon = ifelse(d3$q005_administrative_region== "yangon_region",1,0) 
+
+
+```
+
+# collective action intentions against coup
+```{r}
+
+
+
+d2$peaceprotest= ifelse(d2$q04_actions_participating_peaceful_protest==1,1,0)
+d2$violentprotest = ifelse(d2$q04_actions_participating_violent_protest==1,1,0)
+d2$finger = ifelse(d2$q04_actions_sharing_3_finger_symbol==1,1,0)
+d2$dinpots= ifelse(d2$q04_actions_participating_nightly_din_pots==1,1,0)
+d2$disobol= ifelse(d2$q04_actions_support_disobedience_online==1,1,0) 
+d2$coorol = ifelse(d2$q04_actions_coordinating_activities_online==1,1,0) 
+
+d2$colact= rowSums(data.frame(d2$peaceprotest,d2$violentprotest,d2$finger,d2$dinpots,d2$disobol,d2$coorol) )
+
+
+```
+
+# Perceived societal threat
+
+Every item was counted as 0 (not perceived) or 1 (perceived). The sum score is the perceived societal threat scale 
+```{r}
+
+
+d2$frepop= ifelse(d2$q11_threatened_by_takeover_rights_freedoms_entire_pop==1,1,0)
+d2$fremin= ifelse(d2$q11_threatened_by_takeover_rights_freedoms_minorities==1,1,0)
+d2$safcom= ifelse(d2$q11_threatened_by_takeover_security_safety_your_community==1,1,0)
+d2$perse= ifelse(d2$q11_threatened_by_takeover_your_personal_security_safety==1,1,0)
+d2$finsaf= ifelse(d2$q11_threatened_by_takeover_your_personal_financial_safety==1,1,0)
+
+
+d3$frepop= ifelse(d3$q11v2_threatened_by_takeover_rights_freedoms_entire_pop==1,1,0)
+
+d3$fremin= ifelse(d3$q11v2_threatened_by_takeover_rights_freedoms_minorities==1,1,0)
+d3$safcom= ifelse(d3$q11v2_threatened_by_takeover_security_safety_your_community==1,1,0)
+d3$perse= ifelse(d3$q11v2_threatened_by_takeover_your_personal_security_safety==1,1,0)
+d3$finsaf= ifelse(d3$q11v2_threatened_by_takeover_economic_growth_of_mm==1,1,0)
+
+
+d2$threatcoup= rowSums(data.frame(d2$frepop,d2$fremin,d2$safcom,d2$perse,d2$finsaf) )
+d3$threatcoup= rowSums(data.frame(d3$frepop,d3$fremin,d3$safcom,d3$perse,d3$finsaf) )
+```
+
+##demographics
+```{r}
+
+
+d2$device= as.character(d2$device)
+
+d2$age= as.numeric(d2$age)
+d2$age_group= as.character(d2$age_group)
+d3$age= as.numeric(d3$age)
+
+d1$gender= ifelse(d1$gender== "female", 2,1)
+  
+
+
+
+d2$q00a_select_language= as.character(d2$q00a_select_language)
+
+d1$q01_education = as.numeric(dplyr::recode(d1$q01_education, no_schooling_monastic_incomplete="1",primary_school = "2", middle_school = "3", high_school_or_higher = "4"))
+
+
+d1$edu= d1$q01_education
+d2$edu = d2$q01_education
+
+d3$edu= d3$q01_education
+
+
+```
+
+##indicators support for military
+```{r}
+d3$furious= 6-d3$q11_furious_military_taking_over
+
+d2$furious= d2$q15_statements_furious_military_taking_over
+
+d2$hopem= d2$q07_hopeful_state_emergency
+d3$hopem= d3$q10a_hopeful_military
+
+d2$hoper = d2$q07_hopeful_witness_disobedience
+d3$hoper= d3$q25a_hopeful_EAO
+```
+
+##support for minority rights
+
+```{r}
+d2$supminrights= d2$q18_value_right_protection_minorities
+d2$supminrightsnew= d2$q18_value_right_protection_minorities
+
+d3$supminrights= d3$q18_value_right_protection_minorities
+d3$supminrights2= d3$q18_value_right_participate_in_life
+d3$supminrights3= d3$q18_value_right_to_equal_treatment
+
+psych::alpha(data.frame(d3$supminrights, d3$supminrights2,d3$supminrights3))
+d3$supminrightsnew= rowMeans(data.frame(d3$supminrights, d3$supminrights2,d3$supminrights3))
+#dplyr::full_join(d1,d2)
+```
+
+
+# merging the datasets belonging to each wave
+```{r}
+
+intersect(names(d1), names(d2))
+
+d <- merge(d1,d2,by.x = c("date", "wave", "uuid","timestamp","city", "age", "gender", "region", "q01_education", "muslims_threat", "minorities_threat", "minorities_contribute", "muslims_contribute", "complete", "country_name",  "country","religion","res", "q17_support_buddhists_protest","q17_support_rohingya_protest", "q17_support_muslims_protest", "buddhist", "christian","hindu", "muslim", "edu", "religionother", "minorities_contributenew", "minorities_contribute", "min_cont", "min_contnew", "min_threat", "min_threatcom", "min_threatcomnew", "min_threatnew", "mus_threat", "mus_threatcom", "mus_cont", "mus_cont"), by.y=  c("date", "wave", "uuid","timestamp","city", "age", "gender", "region", "q01_education", "muslims_threat", "minorities_threat", "minorities_contribute", "muslims_contribute", "complete", "country_name",  "country","religion","res", "q17_support_buddhists_protest","q17_support_rohingya_protest", "q17_support_muslims_protest", "buddhist", "christian","hindu", "muslim", "edu", "religionother", "minorities_contributenew", "minorities_contribute", "min_cont", "min_contnew", "min_threat", "min_threatcom", "min_threatcomnew", "min_threatnew", "mus_threat", "mus_threatcom", "mus_cont", "mus_cont") , all.x= TRUE, all.y= TRUE )
+
+
+#d$furious= d$q15_statements_furious_military_taking_over
+
+
+
+df= merge(d,d3,by.x = c("date", "wave", "uuid","timestamp","city", "age", "gender", "region", "q01_education", "muslims_threat","minorities_threat", "minorities_contribute", "muslims_contribute", "complete", "country_name",  "country", "res","q18_value_right_protection_minorities", "supminrights",  "frepop", "fremin","safcom", "perse", "finsaf","threatcoup" , "furious", "buddhist", "christian","hindu", "muslim", "edu", "religionother",  "minorities_contributenew", "minorities_contribute", "min_cont", "min_contnew", "min_threat", "min_threatcom", "min_threatcomnew", "min_threatnew", "mus_threat", "mus_threatcom", "mus_cont", "mus_cont","furious", "supminrightsnew", "threatcoup", "q21_oppose_military_takeover", "q21_support_democratic_process", "q21_tolerance_towards_minority", "hopem", "hoper"), by.y=  c("date", "wave", "uuid","timestamp","city", "age", "gender", "region", "q01_education", "muslims_threat","minorities_threat", "minorities_contribute", "muslims_contribute", "complete", "country_name",  "country", "res","q18_value_right_protection_minorities", "supminrights",  "frepop", "fremin","safcom", "perse", "finsaf","threatcoup" , "furious" , "buddhist", "christian","hindu", "muslim", "edu", "religionother", "minorities_contributenew", "minorities_contribute", "min_cont", "min_contnew", "min_threat", "min_threatcom", "min_threatcomnew", "min_threatnew", "mus_threat", "mus_threatcom", "mus_cont", "mus_cont", "furious", "supminrightsnew", "threatcoup", "q21_oppose_military_takeover", "q21_support_democratic_process", "q21_tolerance_towards_minority" , "hopem", "hoper" ) , all.x= TRUE, all.y= TRUE )
+
+
+
+```
+
+Make additional variables
+```{r}
+library(dplyr)
+d2r= subset(d2,d2$city!= "Yangon")
+
+d$restown = ifelse(d$res== "Town", 1 ,0)
+d$resvillage= ifelse(d$res== "Village", 1 ,0)
+d$woman = ifelse(d$gender=="2", 1 ,0)
+
+d2$restown = ifelse(d2$res== "Town", 1 ,0)
+d2$resvillage= ifelse(d2$res== "Village", 1 ,0)
+d2$woman = ifelse(d2$gender=="2", 1 ,0)
+
+#d2br= subset(d2b,d2b$res== "Town"| d2b$res=="Village" )
+
+
+d$wavef= as.factor(d$wave)
+df$wavef= as.factor(df$wave)
+
+levels( as.factor(df$wave))
+#d1$rel= as.factor(d1$religion)
+#d2$rel= as.factor(d2$religion)
+#d$reldum= ifelse(d$religion==1,1,0)
+#d1$reldum= ifelse(d1$religion==1,1,0)
+#d2$reldum= ifelse(d2$religion==1,1,0)
+
+
+library(dplyr)
+
+d$age= as.numeric(d$age)
+
+d2$age= as.numeric(d2$age)
+
+d$sex= ifelse(d$gender=="2", 1,0)
+
+d$sex1= ifelse(d$gender=="2", "Woman","Man")
+class(d$sex1)
+d2$sex= ifelse(d2$gender=="2", 1,0)
+
+d2$sex1= ifelse(d2$gender=="2", "Woman","Man")
+
+
+
+d2$expmilcd= ifelse(d2$q03_experience_event_military_police_crackdowns==1, 1,0)
+d2$expfamar= ifelse(d2$q03_experience_event_family_friends_were_arrested==1, 1,0) 
+d2$expmilvc= ifelse(d2$q03_experience_event_military_violence_civilians==1, 1,0) 
+d2$expfamhid= ifelse(d2$q03_experience_event_family_friends_went_into_hiding==1, 1,0) 
+d2$expintsd = ifelse(d2$q03_experience_event_internet_shutdowns_social_media==1, 1,0) 
+d2$expcurfew= ifelse(d2$q03_experience_event_curfew_restrictions_gatherings==1, 1,0) 
+
+
+
+d2$expcoup= rowSums(data.frame(d2$expmilcd,d2$expfamar,d2$expmilvc,d2$expfamhid,d2$expintsd,d2$expcurfew) )
+hist(d2$min_threat)
+
+db = d%>% filter(religion=="buddhist")
+d2b = d2%>% filter(religion=="buddhist")
+dfb= df%>% filter(buddhist==1)
+
+write.csv(d1, "../data/wave1.csv")
+write.csv(d2, "../data/wave2.csv")
+write.csv(d3, "../data/wave3.csv")
+write.csv(df,"../data/all3waves.csv")
+write.csv(dfb,"../data/all3wavesbuddhists.csv")
+
+```

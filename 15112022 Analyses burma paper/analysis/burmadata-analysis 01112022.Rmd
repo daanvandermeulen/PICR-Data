@@ -1,0 +1,966 @@
+---
+title: "__ Data Analysis (change title to reflect your study)"
+output: html_notebook
+---
+# Load packages
+
+```{r download packages and format csv to prepare for analysis}
+
+library(Rmisc)
+library(tidyverse)
+library(lme4)
+library(lmerTest) 
+library(jsonlite)
+library(car)
+library(simr)
+library(tidyverse)
+library(lme4)
+library(lmerTest) 
+library(jsonlite)
+library(car)
+library(simr)
+library(knitr)
+library(ggplot2)
+library(jtools)
+library(Hmisc)
+library(multcomp)
+library(VIM)
+library(mice)
+library(lattice)
+library(miceadds)
+library(mitml)
+library(lavaan)
+sessionInfo()
+
+
+```
+
+# read data
+
+reading in the data and creating the last few needed variables. I also create a dataset only comprising wave 2 and wave 3.
+```{r}
+library(dplyr)
+d=read.csv("../data/all3waves.csv")
+
+d$cityr= ifelse(d$res=="City",1,0)
+d$wave1= ifelse(d$wave=="wave1",1,0)
+d$wave2= ifelse(d$wave=="wave2",1,0)
+d$wave3= ifelse(d$wave=="wave3",1,0)
+
+
+
+
+
+d$genderwoman= ifelse(d$gender ==2,1,0)
+
+d23= d%>%filter(wave != "wave1")
+d1 = d%>%filter(wave == "wave1")
+d2 = d%>%filter(wave == "wave2")
+d3 = d%>%filter(wave == "wave3")
+
+db= d%>%filter(buddhist==1)
+db1 = db%>%filter(wave == "wave1")
+db2 = db%>%filter(wave == "wave2")
+db3 = db%>%filter(wave == "wave3")
+```
+
+# Methods
+
+## number of participants per wave
+
+```{r}
+
+b=db%>% group_by(wave)%>% dplyr::summarize(n= n(), na= sum(is.na(complete)==TRUE), full = n-na)
+
+kable(b)
+
+```
+
+
+## Confirmatory factor analysis perceived societal threat in wave 2 and wave 3
+```{r}
+
+#wave 2
+HS.model <- ' exposure  =~ frepop + fremin + safcom+ perse +finsaf   '
+
+fit2 <- cfa(HS.model, data = db2)
+
+
+
+
+summary(fit2, fit.measures=TRUE)
+
+
+#wave 3
+HS.model <- ' exposure  =~ frepop + fremin + safcom+ perse +finsaf   '
+
+fit3 <- cfa(HS.model, data = db3)
+
+
+
+
+summary(fit3, fit.measures=TRUE)
+
+```
+
+## Percentage missing data per wave
+
+```{r}
+
+
+
+
+
+mean(is.na(d%>%filter(wave == "wave1"))==TRUE)
+mean(is.na(d%>%filter(wave == "wave2"))==TRUE)
+mean(is.na(d%>%filter(wave == "wave3"))==TRUE)
+
+
+```
+## demographics averages
+
+```{r}
+
+demo = db[,c("gender", "age", "buddhist", "edu", "cityr", "wave")]
+
+
+demo2= demo%>%  group_by(wave) %>% 
+  dplyr::summarise(across(
+    .clm = where(is.numeric),  # all numeric columns in the data frame
+    .fns = list("mean" = mean),
+    na.rm=T))
+
+demo2= as.data.frame(demo2)
+kable(demo2)
+
+```
+
+
+
+Incomplete cases per variable
+```{r}
+
+
+
+sum(is.na(db2$threatcoup)==FALSE)
+sum(is.na(db3$threatcoup)==FALSE)
+
+sum(is.na(db1$min_threat)==FALSE)
+sum(is.na(db2$min_threat)==FALSE)
+sum(is.na(db3$min_threat)==FALSE)
+
+sum(is.na(db1$mus_threat)==FALSE)
+sum(is.na(db2$mus_threat)==FALSE)
+sum(is.na(db3$mus_threat)==FALSE)
+
+
+
+sum(is.na(db2$supminrights)==FALSE)
+sum(is.na(db3$supminrights)==FALSE)
+
+
+
+
+
+
+
+```
+
+
+# Results
+
+
+
+
+
+
+
+## Time contrast perceived ethnic minority threat
+
+For the contrast of perceived societal threat, see chunk below this one.
+```{r}
+
+db$wavef= as.factor(db$wavef)
+
+db<- within(db, wavef<- relevel(wavef, ref = "wave1"))
+
+m2 <- lm(min_threat ~ wavef+ genderwoman + age+  edu + cityr, data = db)
+
+summary(m2)
+
+
+ancova_model <- aov(min_threat ~ wavef+ genderwoman + age+  edu + cityr, data = db)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m2, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived ethnic minority threat", pred.labels= c("Wave 1", "Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+
+```
+
+## Time contrasts of perceived societal threat
+
+
+
+```{r}
+
+
+m1 <- lm(threatcoup ~ wavef+ genderwoman + age+ edu + cityr, data = db)
+
+summary(m1)
+
+
+db$wavef= as.factor(db$wavef)
+ancova_model <- aov(threatcoup ~ wavef+ genderwoman + age+  edu + cityr, data = db)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m1, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived societal threat", pred.labels= c("Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+```
+
+
+## Time contrast perceived Muslim threat
+```{r}
+
+m3 <- lm(mus_threat ~ wavef+ genderwoman + age+  edu + cityr, data = db)
+
+summary(m3)
+
+
+ancova_model <- aov(mus_threat ~ wavef+ genderwoman + age+  edu + cityr, data = db)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m3, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived Muslim threat", pred.labels= c("Wave 1", "Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+
+
+
+```
+
+## linear model predicting perceived ethnic minority threat from perceived societal threat
+
+```{r}
+
+
+m= lm(min_threat ~ threatcoup+ edu+genderwoman+ age+  cityr, db); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ",")
+```
+
+
+## linear model predicting perceived Muslim threat from perceived societal threat
+
+```{r}
+
+
+m= lm(mus_threat ~ threatcoup+ edu+genderwoman+ age+ cityr, db); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+
+```
+
+## linear model predicting support for minority rigths from perceived minority threat
+
+```{r}
+
+
+m= lm( supminrights  ~ min_threat+ edu+genderwoman+ age+ cityr, db); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+```
+
+
+## linear model predicting support for minority rigths from perceived Muslim threat
+
+```{r}
+
+
+m= lm( supminrights~ mus_threat+ edu+genderwoman+ age+ cityr, db); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+
+```
+
+Mediation perceived minority threat
+
+Using Lavaan
+```{r}
+
+mediation1 <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             min_threat ~ a*threatcoup+ edu+genderwoman+ age+  cityr
+             supminrights ~ b*min_threat + edu+genderwoman+ age+  cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+fit <- sem(mediation1, data = db)
+summary(fit, standardized = TRUE)
+
+
+
+```
+
+
+
+## Perceived muslim threat as mediator
+```{r}
+mediation2 <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             mus_threat ~ a*threatcoup+ edu+genderwoman+ age+ cityr
+             supminrights ~ b*mus_threat + edu+genderwoman+ age+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+fit <- sem(mediation2, data = db)
+summary(fit, standardized = FALSE)
+
+```
+
+
+
+
+#Multiple imputation
+
+## make imputed datasets
+
+
+```{r}
+d$genderwoman= ifelse(d$gender==2,1,0)
+
+
+mid2 <- aregImpute(formula = ~genderwoman+ age+ edu+ cityr+ wave2+wave3 +min_threat +mus_threat +supminrights ,
+                 data=db,n.impute = 10, burnin=3, type='pmm', pmmtype=1, 
+    nk = 0 , tlinear = FALSE, B = 10)
+
+
+
+
+```
+
+
+
+### time contrasts perceived ethnic minority threat
+
+```{r}
+db<- within(db, wavef<- relevel(wavef, ref = "wave2"))
+
+m1 <- fit.mult.impute( min_threat~ wavef+ genderwoman + age+  edu + cityr  , fitter = lm, data = db, xtrans = mid2)
+
+
+summary(m1)
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+ 
+
+d$wavef= as.factor(d$wavef)
+db<- within(db, wavef<- relevel(wavef, ref = "wave2"))
+
+
+m1 <- fit.mult.impute( min_threat~ wavef+ genderwoman + age+ edu + cityr  , fitter = lm, data = db, xtrans = mid2)
+
+
+summary(m1)
+
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE, ci.hyphen = ", ")
+ 
+```
+
+### time contrasts perceived Muslim threat
+```{r}
+
+db<- within(db, wavef<- relevel(wavef, ref = "wave1"))
+
+ m1 <- fit.mult.impute( mus_threat~ wavef+ genderwoman + age+  edu + cityr  , fitter = lm, data = db, xtrans = mid2)
+
+
+summary(m1)
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+ 
+
+d$wavef= as.factor(d$wavef)
+db<- within(db, wavef<- relevel(wavef, ref = "wave2"))
+
+
+m1 <- fit.mult.impute( mus_threat~ wavef+ genderwoman + age+  edu + cityr  , fitter = lm, data = db, xtrans = mid2)
+
+
+summary(m1)
+
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE, ci.hyphen = ", ")
+ 
+
+```
+## Perform new multiple imputation procedure that is compatible with lavaan
+
+```{r}
+
+tempData3 <- mice(data = db[, c("genderwoman", "age", "edu", "cityr", "min_threat","mus_threat",  "threatcoup", "supminrights")],m=13,maxit=10,meth='pmm',seed=500)
+summary(tempData3)
+
+#-------------------------------------------------------------------------------
+# IMPUTE
+# create imputed dataframe in list for compatibility
+
+
+imp2 <- miceadds::datlist_create(tempData3)
+
+
+```
+
+
+## Mediation model with perceived minority threat as mediator
+```{r}
+#-------------------------------------------------------------------------------
+# Mediation
+
+##Create your mediation model
+mediation <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             min_threat ~ a*threatcoup+ edu+genderwoman+ age+  cityr
+             supminrights ~ b*min_threat + edu+genderwoman+ age+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+options(scipen=999)
+
+# analysis based on all imputed datasets
+mod6b <- lapply( imp2 , FUN = function(data){
+  res <- lavaan::sem(mediation , data = data )
+  return(res)
+} )
+
+# extract all parameters
+qhat <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$est
+  names(v1) <- parnames
+  return(v1)
+} )
+se <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$se
+  names(v1) <- parnames
+  return(v1)
+} )
+
+
+# use mitml for mediation
+se2 <- lapply( se , FUN = function(ss){ ss^2 } ) # input variances
+results <- mitml::testEstimates(qhat=qhat, uhat=se2)
+results$estimates
+
+```
+
+## perceived muslim threat as mediator
+
+```{r}
+
+mediation <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             mus_threat ~ a*threatcoup+ edu+genderwoman+ age+ cityr
+             supminrights ~ b*mus_threat + edu+genderwoman+ age+  cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+options(scipen=999)
+
+# analysis based on all imputed datasets
+mod6b <- lapply( imp2 , FUN = function(data){
+  res <- lavaan::sem(mediation , data = data )
+  return(res)
+} )
+
+# extract all parameters
+qhat <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$est
+  names(v1) <- parnames
+  return(v1)
+} )
+se <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$se
+  names(v1) <- parnames
+  return(v1)
+} )
+
+
+# use mitml for mediation
+se2 <- lapply( se , FUN = function(ss){ ss^2 } ) # input variances
+results <- mitml::testEstimates(qhat=qhat, uhat=se2)
+results$estimates
+
+
+```
+
+
+## with all data (extra analyses not in manuscript)
+
+
+
+## Time contrasts perceived societal threat
+
+```{r}
+
+
+m1 <- lm(threatcoup ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+summary(m1)
+
+
+d$wavef= as.factor(d$wavef)
+ancova_model <- aov(threatcoup ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m1, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived societal threat", pred.labels= c("Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+```
+
+
+
+
+## Time contrast perceived ethnic minority threat
+```{r}
+
+m2 <- lm(min_threat ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+summary(m2)
+
+d$wavef= as.factor(d$wavef)
+ancova_model <- aov(min_threat ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m2, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived ethnic minority threat", pred.labels= c("Wave 1", "Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+
+```
+
+## Time contrast perceived Muslim threat
+```{r}
+
+m3 <- lm(mus_threat ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+summary(m3)
+
+
+ancova_model <- aov(mus_threat ~ wavef+ genderwoman + age+ buddhist+ edu + cityr, data = d)
+
+#view summary of model
+Anova(ancova_model, type="III") 
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(wavef = "Tukey"))
+
+apa::anova_apa(ancova_model, effect= "wavef")
+#view a summary of the post hoc comparisons
+summary(postHocs)
+
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+
+interactions::cat_plot(m3, pred = wavef,  x.label= "Moment of Measurement", y.label= "Perceived Muslim threat", pred.labels= c("Wave 1", "Wave 2", "Wave 3"), point.color= "red",  int.width = 0.95)
+
+
+
+
+```
+
+## linear model predicting perceived minority threat from perceived societal threat
+
+```{r}
+
+
+m= lm(min_threat ~ threatcoup+ edu+genderwoman+ age+ buddhist+ cityr, d23); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ",")
+```
+
+
+## linear model predicting perceived Muslim threat from perceived societal threat
+
+```{r}
+
+
+m= lm(mus_threat ~ threatcoup+ edu+genderwoman+ age+ buddhist+ cityr, d23); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+
+```
+
+## linear model predicting support for minority rigths from perceived minority threat
+
+```{r}
+
+
+m= lm( supminrights  ~ min_threat+ edu+genderwoman+ age+ buddhist+ cityr, d23); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+```
+
+
+## linear model predicting support for minority rigths from perceived Muslim threat
+
+```{r}
+
+
+m= lm( supminrights~ mus_threat+ edu+genderwoman+ age+ buddhist+ cityr, d23); summary(m)
+
+sjPlot::tab_model(m,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+
+```
+
+Mediation perceived minority threat
+
+Using Lavaan
+```{r}
+
+mediation1 <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             min_threat ~ a*threatcoup+ edu+genderwoman+ age+ buddhist+ cityr
+             supminrights ~ b*min_threat + edu+genderwoman+ age+ buddhist+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+fit <- sem(mediation1, data = d23)
+summary(fit, standardized = TRUE)
+
+
+
+```
+
+
+
+## Perceived muslim threat as mediator
+```{r}
+mediation2 <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             mus_threat ~ a*threatcoup+ edu+genderwoman+ age+ buddhist+ cityr
+             supminrights ~ b*mus_threat + edu+genderwoman+ age+ buddhist+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+fit <- sem(mediation2, data = d23)
+summary(fit, standardized = FALSE)
+
+```
+
+
+
+
+#Multiple imputation
+
+## make imputed datasets
+
+
+```{r}
+d$genderwoman= ifelse(d$gender==2,1,0)
+
+
+mid2 <- aregImpute(formula = ~genderwoman+ age+ buddhist+ edu+ cityr+ wave2+wave3 +min_threat +mus_threat +supminrights ,
+                 data=d,n.impute = 10, burnin=3, type='pmm', pmmtype=1, 
+    nk = 0 , tlinear = FALSE, B = 10)
+
+
+
+
+```
+
+
+
+### time contrasts perceived ethnic minority threat
+
+```{r}
+
+m1 <- fit.mult.impute( min_threat~ wavef+ genderwoman + age+ buddhist+ edu + cityr  , fitter = lm, data = d, xtrans = mid2)
+
+
+summary(m1)
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+ 
+
+d$wavef= as.factor(d$wavef)
+d<- within(d, wavef<- relevel(wavef, ref = "wave2"))
+
+
+m1 <- fit.mult.impute( min_threat~ wavef+ genderwoman + age+ buddhist+ edu + cityr  , fitter = lm, data = d, xtrans = mid2)
+
+
+summary(m1)
+
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE, ci.hyphen = ", ")
+ 
+```
+
+### time contrasts perceived Muslim threat
+```{r}
+
+
+m1 <- fit.mult.impute( mus_threat~ wavef+ genderwoman + age+ buddhist+ edu + cityr  , fitter = lm, data = d, xtrans = mid2)
+
+
+summary(m1)
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE,show.df = TRUE, ci.hyphen = ", ")
+ 
+
+d$wavef= as.factor(d$wavef)
+d<- within(d, wavef<- relevel(wavef, ref = "wave2"))
+
+
+m1 <- fit.mult.impute( mus_threat~ wavef+ genderwoman + age+ buddhist+ edu + cityr  , fitter = lm, data = d, xtrans = mid2)
+
+
+summary(m1)
+
+
+sjPlot::tab_model(m1,  show.r2= TRUE, digits.p = 5, show.se = TRUE,
+  show.stat = TRUE, ci.hyphen = ", ")
+ 
+
+```
+## Perform new multiple imputation procedure that is compatible with lavaan
+
+```{r}
+
+tempData3 <- mice(data = d[, c("genderwoman", "age", "buddhist", "edu", "cityr", "min_threat","mus_threat",  "threatcoup", "supminrights")],m=13,maxit=10,meth='pmm',seed=500)
+summary(tempData3)
+
+#-------------------------------------------------------------------------------
+# IMPUTE
+# create imputed dataframe in list for compatibility
+
+
+imp2 <- miceadds::datlist_create(tempData3)
+
+
+```
+
+
+## Mediation model with perceived minority threat as mediator
+```{r}
+#-------------------------------------------------------------------------------
+# Mediation
+
+##Create your mediation model
+mediation <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             min_threat ~ a*threatcoup+ edu+genderwoman+ age+ buddhist+ cityr
+             supminrights ~ b*min_threat + edu+genderwoman+ age+ buddhist+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+options(scipen=999)
+
+# analysis based on all imputed datasets
+mod6b <- lapply( imp2 , FUN = function(data){
+  res <- lavaan::sem(mediation , data = data )
+  return(res)
+} )
+
+# extract all parameters
+qhat <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$est
+  names(v1) <- parnames
+  return(v1)
+} )
+se <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$se
+  names(v1) <- parnames
+  return(v1)
+} )
+
+
+# use mitml for mediation
+se2 <- lapply( se , FUN = function(ss){ ss^2 } ) # input variances
+results <- mitml::testEstimates(qhat=qhat, uhat=se2)
+results$estimates
+
+```
+
+## perceived muslim threat as mediator
+
+```{r}
+
+mediation <- ' 
+# direct effect
+   supminrights ~ c*threatcoup
+           # mediator
+             mus_threat ~ a*threatcoup+ edu+genderwoman+ age+ buddhist+ cityr
+             supminrights ~ b*mus_threat + edu+genderwoman+ age+ buddhist+ cityr
+
+           # indirect effect (a*b)
+             ab := a*b
+           # total effect
+             total := c + (a*b)
+            direct := c
+'
+
+options(scipen=999)
+
+# analysis based on all imputed datasets
+mod6b <- lapply( imp2 , FUN = function(data){
+  res <- lavaan::sem(mediation , data = data )
+  return(res)
+} )
+
+# extract all parameters
+qhat <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$est
+  names(v1) <- parnames
+  return(v1)
+} )
+se <- lapply( mod6b , FUN = function(ll){
+  h1 <- lavaan::parameterEstimates(ll)
+  parnames <- paste0( h1$lhs , h1$op , h1$rhs )
+  v1 <- h1$se
+  names(v1) <- parnames
+  return(v1)
+} )
+
+
+# use mitml for mediation
+se2 <- lapply( se , FUN = function(ss){ ss^2 } ) # input variances
+results <- mitml::testEstimates(qhat=qhat, uhat=se2)
+results$estimates
+
+
+```
+
