@@ -1,0 +1,179 @@
+---
+title: "Legit Violence Cleaning"
+author: "Blinded for peer review"
+date: "1/16/2021"
+output: html_document
+---
+```{r packages, include= FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(gapminder)
+library(broom)
+library(psych)
+library(careless)
+```
+
+Note csv file was download from Qualtrics with options of numbers rather than values selected. 
+
+```{r find workers to reject, include= FALSE}
+d <- read.csv("legit violence study.csv")
+
+
+#demos <- read.csv("coded demos.csv")
+#d <- dplyr::left_join(d, demos, by = "workerId")
+names(d)[names(d)=="Duration..in.seconds."] <- "Duration"
+
+names(d)
+#report ids of participants who were bots
+d$captcha
+#d_out <- subset(d, d$captcha != 1) 
+#x <- data.frame(d_out$workerId)
+#x <- unique(x)
+#write.csv(x, "worker Ids to reject for being bots.csv")
+#rm(x, d_out)
+
+#dropping people who failed bot check
+#d <- subset(d, d$captcha == 0)
+
+#report ids of participants who did the survey multiple times
+d <- d[order(d$StartDate),]
+d$duplicateID <- duplicated(d$workerId) + duplicated(d$workerId, fromLast = TRUE)
+d_out <- subset(d, duplicateID == 1)
+write.csv(d_out, "duplicate data.csv")
+rm(d_out)
+
+#remove participants who did the survey multiple times 
+d <- subset(d,(d$duplicateID == 1 & d$Finished == 0) == F)
+
+d <- d[order(d$StartDate),]
+d$duplicateID <- duplicated(d$workerId)
+d <- subset(d, d$duplicateID == F)
+
+
+
+
+
+#check for high number of missing values in one participant's response
+d$naCount <- apply(d, 1, function(x) sum(is.na(x)))
+table(d$naCount)
+ggplot(d, aes(x = (naCount))) +
+  geom_histogram()
+table(d$naCount)
+
+
+d_out = subset (d,naCount > 33) 
+x <- d_out$workerId
+write.csv(x, "worker Ids to reject for not completing whole survey.csv")
+rm(x, d_out)
+#remove participants who did not finish
+d <- subset (d,naCount < 33) 
+
+
+#report ids of participants who were filtered out
+#d_check <- subset(d, is.na(FilteredOut) == T) 
+d$FilteredOut <- ifelse(d$Age < 18, 1, 0)
+#d_out <- subset(d, is.na(FilteredOut) == T) 
+#x<- data.frame(d_out$workerId)
+#x <- unique(x)
+#write.csv(x, "worker Ids to reject for being filtered out.csv")
+#rm(x, d_out)
+
+
+#only keep people who weren't filtered out
+#d <- subset(d, d$FilteredOut == 0) 
+
+#report ids of participants with matching ip addresses
+d$duplicateIP = duplicated(d$IPAddress)
+x = data.frame(d$IPAddress[d$duplicateIP == TRUE])
+x = unique(x)
+y = data.frame(matrix(ncol=1,nrow=0)) 
+for (i in 1:nrow(x)) {
+  z <- data.frame(d$workerId[d$IPAddress == x[i,1]])
+  y <- rbind(y,z)
+}
+ex <- y[,1]
+for (i in 1:length(ex)) {
+  d$duplicateIP[d$workerId==ex[i]] <- TRUE
+}
+ex <- unique(ex)
+print(ex)
+write.csv(ex, "worker Ids to reject for being from the same IP address.csv")
+rm(x,y,z,i,ex)
+
+#remove participants with matching ip addresses
+d = subset (d,d$duplicateIP == FALSE) 
+
+
+#calculate spamcheck fails
+d$SpamCheck1F <- ifelse(d$SpamCheck1 == 6, 0, 1)
+d$SpamCheck1F[is.na(d$SpamCheck1F)] <- 0
+
+d$SpamCheck2F <- ifelse(d$SpamCheck2 == 6, 0, 1)
+d$SpamCheck2F[is.na(d$SpamCheck2F)] <- 0
+
+d$SpamCheckFail <- d$SpamCheck1F + d$SpamCheck2F
+
+ggplot(d, aes(x = (SpamCheckFail))) +
+  geom_histogram()
+
+table(d$SpamCheckFail)
+
+#identify those to reject
+x <- data.frame(d$workerId[d$SpamCheckFail > 1])
+write.csv(x, "worker Ids to reject for failing both spamchecks.csv")
+rm(x)
+
+#remove participants who failed spamchecks
+d <- subset (d,SpamCheckFail < 2) 
+
+
+#looking at duration
+#hist(d$Duration, breaks = 50)
+#table(d$Duration)
+#x <- data.frame(d$workerId[d$Duration < 300])
+#write.csv(x, "worker Ids to reject for being too fast.csv")
+#rm(x)
+#d = subset(d, d$Duration > 300) 
+
+
+#Examining many repeated values
+#names(d)
+#forirv <- d[, 19:130]
+#d$longstring <- longstring(forirv)
+#d$longstring_s <- scale(d$longstring)
+#hist(d$longstring)
+#hist(d$longstring_s)
+
+#d <- subset(d, d$longstring < 20)
+#rm(forirv)
+
+
+
+```
+
+```{r missing values per variable}
+# explore NAs per column (variables)
+Var_NA <- as.data.frame(apply(d, 2, function(x) sum(is.na(x))))
+
+
+ggplot(Var_NA, aes(x = (apply(d, 2, function(x) sum(is.na(x)))))) +
+  geom_histogram()
+
+rm(Var_NA)
+```
+
+```{r check number of Dems & Repubs}
+table(d$Party)
+
+prop.table(table(d$Party))
+
+table(d$Lean)
+
+prop.table(table(d$Lean))
+
+#write.csv(d, "clean data.csv")
+
+write.csv(d, "new clean data.csv")
+```
+

@@ -1,0 +1,692 @@
+---
+title: "Legitimization of cross party violence"
+author: "blinded for peer review"
+date: "3/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggstatsplot)
+library(tidyverse)
+library(gapminder)
+library(broom)
+library(ggthemes)
+library(interactions)
+library(emmeans)
+library(lm.beta)
+library(performance)
+library(e1071)
+library(qqplotr)
+library("see")
+library(gridExtra)
+library (psych)
+library(apaTables)
+library(careless)
+```
+
+#reading data (US file is already cleaned and the both sample were pre-organized using SPSS)
+```{r read data}
+
+d1 = read.csv("Israel data.csv")
+US <- read.csv("US data.csv")
+```
+
+# ***************** Study 1 *************************
+
+#cleaning the Israeli sample:
+```{r}
+#check for high number of missing values in one participant's response
+d1$naCount <- apply(d1, 1, function(x) sum(is.na(x)))
+table(d1$naCount)
+ggplot(d1, aes(x = (naCount))) +
+  geom_histogram()
+table(d1$naCount)
+
+#looking at duration
+hist(d1$Duration__in_seconds_, breaks = 50)
+table(d1$Duration__in_seconds_)
+
+d1 = subset(d1, d1$Duration__in_seconds_ > 300) 
+
+#Examining many repeated values
+names(d1)
+forirv <- d1[, 34:142]
+d1$longstring <- longstring(forirv)
+d1$longstring_s <- scale(d1$longstring)
+hist(d1$longstring)
+hist(d1$longstring_s)
+
+quantile(d1$longstring)
+
+d1 <- subset(d1, d1$longstring < 16)
+rm(forirv)
+
+```
+
+# demographics- Israel
+```{r demographics}
+#gender
+table1 <- table(d1$dem_gender)
+prop.table(table1)
+#age
+mean(d1$dem_age)
+#political camp
+table(d1$pol_camp)
+
+rm(table1)
+```
+
+#Scales reliability - Israel 
+```{r reliability d1}
+#legitimization scale
+dv_leg <- d1[ , c("sup_in_v_5","sup_in_v_6","sup_in_v_7")]
+cronbachs_alpha(dv_leg)
+rm(dv_leg)
+
+#efficacy scale
+effic <- d1[ , c( "effic_1" , "effic_2" , "effic_3")]
+cronbachs_alpha(effic)
+rm (effic)
+
+#aggressiveness scale
+agrress <- d1[ , c( "aggress_1" , "aggress_2"  , "aggress_3")]
+cronbachs_alpha(agrress)
+rm(agrress)
+
+#VSA scale
+VSA <- d1[ , c( "vsa_1_r" , "vsa_2" , "vsa_3", "vsa_4" )]
+cronbachs_alpha(VSA)
+rm(VSA)
+
+#SDO scale (3 items)
+SDO_full <- d1[ , c( "sdo_1_r", "sdo_2"  , "sdo_3" )]
+cronbachs_alpha(SDO_full)
+rm(SDO_full)
+
+#SDO (only 2 items)
+SDO <- d1[ , c( "sdo_2"  , "sdo_3" )]
+cronbachs_alpha(SDO)
+rm(SDO)
+
+#ideological identification scale
+pol_idnt <- d1[ , c(  "pol_idnt_1" , "pol_idnt_2" , "pol_idnt_3"  )]
+cronbachs_alpha(pol_idnt)
+rm(pol_idnt)
+```
+
+#t-test order
+```{r t test}
+
+var.test(sup_in_v_physicall ~ order_num, data = d1)
+t.test (sup_in_v_physicall ~ order_num, data = d1, var.equal = TRUE)
+```
+
+#check DV
+```{r dv missing}
+
+sum(is.na(d1$sup_in_v_physicall))
+dv_table <- table (d1$sup_in_v_physicall)
+prop.table(dv_table)
+rm(dv_table)
+```
+
+#correlations - Israel
+```{r d1 correlations}
+#names of variables
+names(d1)
+
+#reversing the thermometer scores:
+d1$out_thermR <- abs(100 - d1$thermo_out_1)
+paste(d1$thermo_out_1, d1$out_thermR)
+
+#Z scores for the reversed thermometer:
+d1$Zout_thermR <- scale(d1$out_thermR)
+
+
+#creating data frame of all relevant variables for the correlation
+d1_reldata <- d1[ , c("viol_legit_binar", "dem_gender" , "dem_age", "dem_education" ,
+                      "dem_religiosity_leve"  , "sdo_avg" ,
+                      "vsa_avg" , "aggress_avg", "pol_idntl_avg" , 
+                      "out_thermR" , "effic_avg" , "order_num" )]
+
+colnames(d1_reldata) <- c("Legitimization.of.political.violence", 
+                          "Sex", "Age", "Education", "Religiosity.level", "SDO", 
+                          "RWA", "Trait.Aggression", "Strength.of.ideological.identity", 
+                          "Affective.Polarization", "Non.violent.Group.Efficacy", "Order")
+
+#printing APA correlation table of relevant variables
+
+apa.cor.table(
+  d1_reldata,
+  filename = "cor_table_Israel_July13.doc",
+  table.number = 1,
+  show.sig.stars = TRUE,
+  landscape = FALSE
+)
+
+```
+
+
+# Study 1 Linear Regression and checking normality of Residuals
+```{r study 1 analyses}
+describe(d1$sup_in_v_physicall)
+table(d1$sup_in_v_physicall)
+hist(d1$sup_in_v_physicall)
+skewness(d1$sup_in_v_physicall, na.rm = T)
+
+d1$sex <- as.factor(d1$sex)
+d1$order_num <- as.factor(d1$order_num)
+
+model <- lm(sup_in_v_physicall ~ order_num + sex + Zdem_age + Zdem_education + Zdem_religiosity_leve + 
+              Zaggress_avg + Zsdo_avg + Zvsa_avg + Zpol_idntl_avg +
+             Zout_thermR + Zeffic_avg, d1)
+check_model(model, check = "qq")
+
+```
+
+
+# Normality of Residuals Seriously Violated so Using Logistic Regression
+# Study 1 Logistic Regression
+```{r}
+hist(d1$viol_legit_binar)
+
+d1$viol_legit_binar <- as.factor(d1$viol_legit_binar)
+d1$sex <- as.factor(d1$sex)
+d1$order_num <- as.factor(d1$order_num)
+
+
+model_log <- glm(viol_legit_binar ~ sex + Zdem_age + Zdem_education + Zdem_religiosity_leve + 
+               Zsdo_avg + Zvsa_avg + Zaggress_avg + Zpol_idntl_avg + 
+               Zout_thermR + Zeffic_avg + order_num, 
+              data = d1, family = binomial(link = "logit"))
+summary(model_log)
+
+
+library(DescTools)
+PseudoR2(model_log, which = "Nagelkerke")
+
+
+```
+
+
+#interactions with political ideology and efficacy:
+```{r}
+
+table(d1$pol_camp)
+
+library(plyr)
+d1$pol_camp <- as.factor(d1$pol_camp)
+d1$pol_camp <-  revalue(d1$pol_camp, c("1"="0", "2"="1"))
+
+model_int_therm <- glm(viol_legit_binar ~ sex + Zdem_age + Zdem_education + Zdem_religiosity_leve + 
+               Zsdo_avg + Zvsa_avg + Zaggress_avg + Zpol_idntl_avg + 
+               Zout_thermR + Zeffic_avg + order_num +  (Zout_thermR*pol_camp), 
+              data = d1, family = binomial(link = "logit"))
+summary(model_int_therm)
+
+model_int_eff <- glm(viol_legit_binar ~ sex + Zdem_age + Zdem_education + Zdem_religiosity_leve + 
+               Zsdo_avg + Zvsa_avg + Zaggress_avg + Zpol_idntl_avg + 
+               Zout_thermR + Zeffic_avg + order_num +  (Zeffic_avg*pol_camp), 
+              data = d1, family = binomial(link = "logit"))
+summary(model_int_eff)
+```
+
+#logistic regression with thermometer difference score
+```{r}
+
+d1$diff_score <- d1$thremo_in_1 - d1$thermo_out_1
+d1$Zdiff_score <- scale(d1$diff_score, center = TRUE, scale = TRUE)
+
+model_diff <- glm(viol_legit_binar ~ sex + Zdem_age + Zdem_education + Zdem_religiosity_leve + 
+               Zsdo_avg + Zvsa_avg + Zaggress_avg + Zpol_idntl_avg + 
+               Zdiff_score + Zeffic_avg + order_num, 
+              data = d1, family = binomial(link = "logit"))
+summary(model_diff)
+
+
+library(DescTools)
+PseudoR2(model_diff, which = "Nagelkerke")
+
+```
+
+# ***************** Study 2 *************************
+
+#organizing data and demographics - US
+```{r d2 organize}
+#Subset of US sample - only republicans and democrats
+table (US$Party)
+d2_org <- subset(US, US$Party == 1 | US$Party == 2)
+table (d2_org$Party)
+rm(US)
+
+#checking bivariet outliers:
+mod <- lm(legit_physical_viol ~ FeelThermOut_1, data=d2_org)
+d2_org$cooksd <- cooks.distance(mod)
+plot(d2_org$cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 3*mean(d2_org$cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(d2_org$cooksd)+1, y=d2_org$cooksd, labels=ifelse(d2_org$cooksd>3*mean(d2_org$cooksd, na.rm=T),names(d2_org$cooksd),""), col="red")
+
+mean(d2_org$cooksd, na.rm=T)
+
+cooksd_f <- d2_org$cooksd < 3*mean(d2_org$cooksd, na.rm = T)
+sum(cooksd_f)
+
+#new data frame without the outliers: 
+d2 <- subset(d2_org, d2_org$cooksd < 3*mean(cooksd, na.rm = T) )
+rm(mod)
+rm(cooksd_f)
+
+#gender
+table2 <- table(d2$Gender)
+prop.table(table2)
+rm(table2)
+#age
+mean (d2$Age)
+#party:
+prop.table(table (d2$Party))
+  
+d2$sex <- as.factor(d2$sex)
+```
+
+#Scales - US
+```{r d2 scales}
+#legitimization scale
+dv_leg_2 <- d2[ , c("LegitGnrl5","LegitGnrl6","LegitGnrl7")]
+cronbachs_alpha(dv_leg_2)
+rm(dv_leg_2)
+
+#efficacy scale
+effic_2 <- d2[ , c( "Efficacy1" , "Efficacy2" , "Efficacy3"  )]
+cronbachs_alpha(effic_2)
+rm(effic_2)
+
+#aggressiveness scale
+agrress_2 <- d2[ , c( "Aggress1" ,"Aggress2" , "Aggress3")]
+cronbachs_alpha(agrress_2)
+rm(agrress_2)
+
+#VSA scale
+VSA_2 <- d2[ , c( "VSA1" , "VSA2" , "VSA3")]
+cronbachs_alpha(VSA_2)
+rm(VSA_2)
+
+#SDO scale
+SDO_2 <- d2[ , c( "SDO1" , "SDO2" , "r_sdo_3" )]
+cronbachs_alpha(SDO_2)
+rm(SDO_2)
+
+#party identification scale
+pol_idnt_2 <- d2[ , c( "PartyID_1" , "PartyID_2" , "PartyID_3"   )]
+cronbachs_alpha(pol_idnt_2)
+rm(pol_idnt_2)
+
+#social distance scale
+soc_dis <- d2[ , c( "SocDisOut1_1" , "SocDisOut2_1" , "SocDisOut3_1" )]
+cronbachs_alpha(soc_dis)
+rm(soc_dis)
+
+```
+
+#recoding variables - US
+```{r recoding}
+#re-coding gender
+table(d2$Gender)
+d2$Gender <- ifelse(d2$Gender == 10, 0, ifelse(d2$Gender==11, 1, ifelse
+                                               (d2$Gender==12, 2, ifelse
+                                                 (d2$Gender==13, 3, NA))))
+table(d2$Gender)
+
+#re-coding education level
+table(d2$Educ)
+d2$Educ <- ifelse(d2$Educ==19, 1, ifelse(d2$Educ==20, 2, ifelse
+                                         (d2$Educ==21, 3, ifelse
+                                           (d2$Educ==22, 4, ifelse
+                                             (d2$Educ==23, 5, NA)))))
+table(d2$Educ)
+
+# re-coding religiosity level
+table(d2$Religious)
+d2$Religious <- ifelse(d2$Religious==93, 1, ifelse
+                       (d2$Religious==94, 2, ifelse
+                       (d2$Religious==95, 3, ifelse
+                       (d2$Religious==96, 4, ifelse 
+                       (d2$Religious==97, 5, ifelse
+                       (d2$Religious==98, 6, ifelse
+                         (d2$Religious==99, 7, NA)))))))
+
+table(d2$Religious)
+
+#re-coding strength of party identification
+table (d2$StrenPartyID)
+d2$StrenPartyID <- ifelse(d2$StrenPartyID==1, 1,ifelse(d2$StrenPartyID==8, 2, 
+                          ifelse(d2$StrenPartyID==2, 3, ifelse(d2$StrenPartyID==3, 4,
+                           ifelse(d2$StrenPartyID==4, 5, ifelse(d2$StrenPartyID==5, 6,
+                           ifelse(d2$StrenPartyID==6, 7, NA)))))))
+table (d2$StrenPartyID)
+
+
+#reversing the feeling thermometer:
+d2$out_thermR <- abs(100 - d2$FeelThermOut_1)
+
+paste(d2$FeelThermOut_1, d2$out_thermR)
+
+d2$Zout_thermR <- scale(d2$out_thermR)
+
+```
+
+#check DV- US
+```{r DV}
+#check missing values in the DV
+sum(is.na(d2$legit_physical_viol))
+
+#check distribution of DV
+dv2_table <- table (d2$legit_physical_viol)
+prop.table(dv2_table)
+rm(dv2_table)
+
+describe(d2$legit_physical_viol)
+```
+
+#correlations -US
+```{r d1 correlations}
+#names of variables in d2
+names(d2)
+
+# creating reversed variables for the feeling thermometer and social distance (full sample)
+d2_org$out_thermR <- abs(100 - d2_org$FeelThermOut_1)
+d2_org$soc_dis_meanR <- abs(100 - d2_org$soc_dis_mean)
+
+#creating a data frame of only relevant variables in the original sample
+d2_org_reldata <- d2_org[ , c("binar_legit_viol", "Gender" , "Age" , "Educ" , "Religious" , "sdo_avg" , "vsa_avg" , "aggressiv_avg",
+                      "partyID_avg" , "out_thermR" ,
+                      "efficacy_avg" , "soc_dis_meanR" )]
+
+#renaming the variables
+colnames(d2_org_reldata) <- c("Legitimization.of.political.violence", 
+                          "Sex", "Age", "Education", "Religiosity.level", "SDO", 
+                          "RWA", "Trait.Aggression", "Strength.of.ideological.identity", 
+                          "Affective.Polarization", "Non.violent.Political.Efficacy", "Social.distance")
+
+#printing APA correlation table of only relevant variables (full sample)
+apa.cor.table(
+  d2_org_reldata,
+   filename = "cor_table_us_fullsmaple_May18.doc",
+  table.number = 3,
+  show.sig.stars = TRUE,
+  landscape = FALSE
+)
+
+
+
+#correlation in the sample without the bivariet outliers
+
+d2$soc_dis_meanR <- abs(100 - d2$soc_dis_mean)
+
+d2_reldata <- d2[ , c("binar_legit_viol", "Gender" , "Age" , "Educ" , "Religious" , "sdo_avg" , "vsa_avg" , "aggressiv_avg",
+                      "partyID_avg" , "out_thermR" ,
+                      "efficacy_avg" , "soc_dis_meanR" )]
+
+colnames(d2_reldata) <- c("Legitimization.of.political.violence", 
+                          "Sex", "Age", "Education", "Religiosity.level", "SDO", 
+                          "RWA", "Trait.Aggression", "Strength.of.ideological.identity", 
+                          "Affective.Polarization", "Non.violent.Political.Efficacy", "Social.distance")
+
+#printing APA correlation table of only relevant variables
+apa.cor.table(
+  d2_reldata,
+   filename = "cor_table_us_subset_July13.doc",
+  table.number = 3,
+  show.sig.stars = TRUE,
+  landscape = FALSE
+)
+
+```
+
+# Study 2 Linear Regression and checking normality of Residuals
+```{r study 2 analyses}
+describe(d2$legit_physical_viol)
+table(d2$legit_physical_viol)
+hist(d2$legit_physical_viol)
+skewness(d2$legit_physical_viol, na.rm = T)
+
+
+model <- lm(legit_physical_viol ~ sex + ZAge + ZEduc + ZReligious + 
+              Zaggressiv_avg + Zsdo_avg + Zvsa_avg + ZpartyID_avg +
+              ZFeelThermOut_1 + Zefficacy_avg, d2)
+check_model(model, check = "qq")
+summary(model)
+```
+
+# Normality of Residuals Seriously Violated so Using Logistic Regression
+# Study 2 Logistic Regression
+```{r}
+hist(d2$binar_legit_viol)
+
+#checking for NA in all relevant variables: 
+sum(is.na(d2$binar_legit_viol))
+sum(is.na(d2$sex))
+sum(is.na(d2$ZAge))
+sum(is.na(d2$ZEduc))
+sum(is.na(d2$ZReligious))
+sum(is.na(d2$Zaggressiv_avg))
+sum(is.na(d2$Zsdo_avg))
+sum(is.na(d2$Zvsa_avg))
+sum(is.na(d2$ZpartyID_avg))
+sum(is.na(d2$ZFeelThermOut_1))
+sum(is.na(d2$Zefficacy_avg))
+
+#converting relevant variables into factors:
+d2$binar_legit_viol <- as.factor(d2$binar_legit_viol)
+d2$sex <- as.factor(d2$sex)
+
+#checking the model:
+model_log <- glm(binar_legit_viol ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg +
+              Zout_thermR + Zefficacy_avg,
+              data = d2, family = binomial(link = "logit"))
+summary(model_log)
+
+
+library(DescTools)
+PseudoR2(model_log, which = "Nagelkerke")
+
+#checking the model in the full sample:
+d2_org$Zout_thermR <- scale(d2_org$out_thermR)
+model_log <- glm(binar_legit_viol ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg +
+              Zout_thermR + Zefficacy_avg,
+              data = d2_org, family = binomial(link = "logit"))
+summary(model_log)
+
+```
+
+#interactions with political ideology and efficacy:
+```{r}
+
+table(d2$Party)
+
+library(plyr)
+d2$Party <- as.factor(d2$Party)
+#d2$Party <-  revalue(d2$Party, c("1"="0", "2"="1"))
+
+              
+
+model_int_therm_2 <- glm(binar_legit_viol ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg +
+              Zout_thermR + Zefficacy_avg + (Zout_thermR*Party), 
+              data = d2, family = binomial(link = "logit"))
+
+summary(model_int_therm_2)
+
+model_int_eff_2 <- glm(binar_legit_viol ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg +
+              Zout_thermR + Zefficacy_avg +  (Zefficacy_avg*Party), 
+              data = d2, family = binomial(link = "logit"))
+summary(model_int_eff_2)
+```
+
+#logistic regression with difference score
+```{r}
+
+d2$diff_score <- d2$FeelThermIn_1 - d2$FeelThermOut_1
+d2$Zdiff_score <- scale(d2$diff_score, center = TRUE, scale = TRUE)
+
+model_score <- glm(binar_legit_viol ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg +
+             Zdiff_score + Zefficacy_avg, 
+              data = d2, family = binomial(link = "logit"))
+summary(model_score)
+
+tab_model(model_score,show.est=T , show.se = TRUE, file="checking.doc")
+```
+
+# Study 2 Linear Regression and checking normality of Residuals for social distance 
+```{r study 2 analyses}
+d2$soc_dis_meanR <- abs(100 - d2$soc_dis_mean)
+paste(d2$soc_dis_mean, d2$soc_dis_meanR)
+
+summary(d2$soc_dis_mean)
+describe(d2$soc_dis_meanR)
+
+hist(d2$soc_dis_meanR)
+skewness(d2$soc_dis_meanR, na.rm = T)
+
+
+model_socdis <- lm(soc_dis_meanR ~ Sex + Age + Education + Religiosity.level +
+                   SDO + RWA + Trait.Aggression + Strength.of.partisan.identity + 
+                   Affective.Polarization + Non.violent.Political.Efficacy, d2)
+check_model(model_socdis, check = "qq")
+summary(model_socdis)
+
+
+
+# same model with difference score:
+model_socdis_2 <- lm(soc_dis_meanR ~ Sex + Age + Education + Religiosity.level +
+                   SDO + RWA + Trait.Aggression + Strength.of.partisan.identity + 
+                   Zdiff_score + Non.violent.Political.Efficacy, d2)
+check_model(model_socdis_2, check = "qq")
+summary(model_socdis_2)
+
+```
+
+# Study 2 Logistic Regression for Understanding of Capitol Riot
+```{r study 2b analyses}
+#subset only republican and checking demographics: 
+d2_R <- subset(d2, d2$Party == 2)
+mean (d2_R$Age)
+table2 <- table(d2_R$Gender)
+prop.table(table2)
+rm(table2)
+
+#Checking the model:
+d2_R$RiotLegit1_bi <- ifelse(d2_R$RiotLegit1 > 1, 1, 0)
+hist(d2_R$RiotLegit1_bi)
+
+d2_R$RiotLegit1_bi <- as.factor(d2_R$RiotLegit1_bi)
+
+model_log <- glm(RiotLegit1_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+               Zout_thermR + Zefficacy_avg,
+              data = d2_R, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="understanding_riots.doc")
+```
+
+# Study 2 Logistic Regression for Legitimization of Capitol Riot
+```{r}
+
+d2_R$RiotLegit2_bi <- ifelse(d2_R$RiotLegit2 > 1, 1, 0)
+hist(d2_R$RiotLegit2_bi)
+d2_R$RiotLegit2_bi <- as.factor(d2_R$RiotLegit2_bi)
+
+model_log <- glm(RiotLegit2_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+              Zout_thermR + Zefficacy_avg,
+              data = d2_R, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="legtimization_riots.doc")
+```
+
+
+# Study 2  Logistic Regression for Approval of Capitol Riot
+```{r}
+
+d2_R$RiotLegit3_bi <- ifelse(d2_R$RiotLegit3 > 1, 1, 0)
+hist(d2_R$RiotLegit3_bi)
+d2_R$RiotLegit3_bi <- as.factor(d2_R$RiotLegit3_bi)
+
+model_log <- glm(RiotLegit3_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+               Zout_thermR + Zefficacy_avg,
+              data = d2_R, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="approval_riots.doc")
+```
+
+
+# Study 2 Logistic Regression for Understanding Trump's suspenssion
+```{r study 2b analyses}
+#subset only republican and checking demographics: 
+d2_D <- subset(d2, d2$Party == 1)
+mean (d2_D$Age)
+table2 <- table(d2_D$Gender)
+prop.table(table2)
+rm(table2)
+
+#checking the model:
+d2_D$BanLegit1_bi <- ifelse(d2_D$BanLegit1 > 1, 1, 0)
+hist(d2_D$BanLegit1_bi)
+d2_D$BanLegit1_bi <- as.factor(d2_D$BanLegit1_bi)
+
+model_log <- glm(BanLegit1_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+               Zout_thermR + Zefficacy_avg,
+              data = d2_D, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="understanding_suspenssion.doc")
+
+```
+
+# Study 2  Logistic Regression for for Legitimization of Trump's suspenssion
+```{r}
+d2_D$BanLegit2_bi <- ifelse(d2_D$BanLegit2 > 1, 1, 0)
+hist(d2_D$BanLegit2_bi)
+d2_D$BanLegit2_bi <- as.factor(d2_D$BanLegit2_bi)
+
+model_log <- glm(BanLegit2_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+               Zout_thermR + Zefficacy_avg,
+              data = d2_D, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="legitimizaiton_suspenssion.doc")
+```
+
+
+# Study 2 Logistic Regression  for Approval of Trump's suspenssion
+```{r}
+
+
+
+d2_D$BanLegit3_bi <- ifelse(d2_D$BanLegit3 > 1, 1, 0)
+hist(d2_D$BanLegit3_bi)
+d2_D$BanLegit3_bi <- as.factor(d2_D$BanLegit3_bi)
+
+model_log <- glm(BanLegit3_bi ~ sex + ZAge + ZEduc + ZReligious + 
+               Zsdo_avg + Zvsa_avg + Zaggressiv_avg + ZpartyID_avg + 
+               Zout_thermR + Zefficacy_avg,
+              data = d2_D, family = binomial(link = "logit"))
+summary(model_log)
+
+tab_model(model_log,show.est=T , show.se = TRUE, file="approval_suspenssion.doc")
+```
+
+
+
+
