@@ -1,0 +1,139 @@
+---
+title: "S1 Violin Plots"
+author: "Renana Atia"
+date: "4 12 2022"
+output: html_document
+---
+
+```{r violins S1, include=FALSE}
+rm(list = ls()) # clean the global environment
+cat ("\014")    #clean the R console
+
+#call the S1_df_analysis file. 
+#use next lines of coded to prodice violin plots for the paper. 
+library(ggplot2)
+
+#make subset with only control and .explicit surprise validation.
+x <- split(S1_df_analysis, S1_df_analysis$cond)
+cont <- x[[1]]
+ES <- x[[4]]
+
+fsir <- rbind(cont, ES)
+
+fsir$cond <- as.factor(fsir$cond)
+levels(fsir$cond) <- c("Control", "Explicit Surprise validation")
+
+p<-ggplot(fsir, aes(x=cond, y=thermometer_A, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Thermometer") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+fsir$RCL <- ifelse(fsir$PolOr<4, '1', ifelse(fsir$PolOr>4, '3', '2'))
+fsir$RCL <- as.numeric(fsir$RCL)
+is.numeric(fsir$RCL)
+table(fsir$RCL)
+#out of the subset, make another, just for rightists. 
+x <- split(fsir, fsir$RCL)
+right <- x[["1"]]
+
+pr<-ggplot(right, aes(x=cond, y=thermometer_A, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Thermometer") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+library(psych)
+describeBy(fsir$thermometer_A, group = fsir$cond)
+
+#HOMOGENEITY
+
+p<-ggplot(fsir, aes(x=cond, y=homogeneity, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Homogeneity") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+pr<-ggplot(right, aes(x=cond, y=homogeneity, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Homogeneity") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+describeBy(fsir$homogeneity, group = fsir$cond)
+describeBy(right$homogeneity, group = right$cond)
+
+#SOCIAL DISTANCE
+
+p<-ggplot(fsir, aes(x=cond, y=SDA, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Social Distance") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+pr<-ggplot(right, aes(x=cond, y=SDA, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Social Distance") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+describeBy(fsir$SDA, group = fsir$cond)
+
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r violins S2, include=FALSE}
+rm(list = ls()) # clean the global environment
+cat ("\014")    #clean the R console
+library(gridExtra)
+
+#call the S2_df_analysis file. 
+#use next lines of coded to prodice violin plots for the paper. 
+library(ggplot2)
+
+#make subset with only control and .explicit surprise validation.
+x <- split(S2_df_analysis, S2_df_analysis$cond)
+cont <- x[[1]]
+ES <- x[[4]]
+
+fsir <- rbind(cont, ES)
+
+fsir$cond <- as.factor(fsir$cond)
+levels(fsir$cond) <- c("Control", "Explicit Surprise validation")
+
+p<-ggplot(fsir, aes(x=cond, y=thermometer_A, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Thermometer") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+table(fsir$RCL)
+#out of the subset, make another, just for rightists. 
+x <- split(fsir, fsir$RCL)
+right <- x[["1"]]
+
+pr<-ggplot(right, aes(x=cond, y=thermometer_A, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Thermometer") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+describeBy(fsir$thermometer_A, group = fsir$cond)
+
+#HOMOGENEITY
+
+p<-ggplot(fsir, aes(x=cond, y=homogeneity, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Homogeneity") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+pr<-ggplot(right, aes(x=cond, y=homogeneity, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Homogeneity") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+describeBy(fsir$homogeneity, group = fsir$cond)
+
+#SOCIAL DISTANCE
+
+p<-ggplot(fsir, aes(x=cond, y=SDA, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Social Distance") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+p
+
+pr<-ggplot(right, aes(x=cond, y=SDA, fill=cond)) +
+  geom_violin(trim=FALSE) + labs(x="Condition", y = "Social Distance") + scale_fill_grey() + theme_classic() + theme(legend.position="none") + theme(text = element_text(size = 30))
+pr
+
+#retrieve means of general population
+describeBy(fsir$SDA, group = fsir$cond)
+
+knitr::opts_chunk$set(echo = TRUE)
+```

@@ -1,0 +1,76 @@
+#Processing and Analysis - Steps and Instructions
+
+The first steps would be to clean the data files (and merge where needed).
+All files appear in the "data" folder for the R project, and can be imported easily - 
+either by using a command (embedded in the code provided), or by choosing the
+needed file from the "files" menu (under "environment"), in R. 
+
+###First file to work with: fsir1, goes with the code file "S1 all process in one place"
+Along with that file there are six more files to use: "fsir 2 23122021", "B", "S", "T", "lfsira", and "lfsirb".
+The reason for that is that we had need of more data as we went, so every time we added more participants, and unfortunately had to add them through different links - creating this process in the designated R markdown file. 
+At the end of this process the rest of the way is done using SPSS. 
+A code for that is provided where applicable.
+The only commands that don't have a code are the PROCESS model 1 commands, for which I left verbal instructions alongside screenshots.
+
+###Second file to work with: "gen_data"
+Here we managed to collect all data at once, thus leading to one file for processing. 
+
+WHEN ANALYZING:
+We left the added variables from others' projects/that were ther for exploratory purposes.
+Therefore, here is a guide to the needed variables for this project:
+1. PolOr - stands for political orientation/political ideology. 
+    the variable works fro 1=extreme political right  to 7=extreme political left
+    the variable was also computed to indicate three political groups:RCL,
+    where 1=right, 2=center, 3=left.
+    the RCL variable is used to measure simple effects within political groups 
+    (second step of analysis). 
+2. thermometer_A - stands for thermometer towards Arabs in general 
+    (there is another thermometer- towards the individual we presented in the article). 
+    Main DV.
+3. homogeneity - measures the assessment of the outgroup being homogeneous. 
+    Main DV. 
+4. SDA - stands for social distancing from Arabs. Main DV.
+5. cond - the variable indicating conditions.Order of the conditions: 
+    1=control
+    2=no surprise no validation
+    3=insinuated surprise validation
+    4=explicit surprise validation
+
+Aditionally, we use four covariates: Age, Sex, Edu, and Income. 
+for S1, we used these four with the ending "2", and that includes PolOr. 
+The reason is we measured these variables twice and made the desicion to use the most updated report from participants. 
+for S2 we use the plain ones, no numbers added. 
+
+FOR INTERACTION STEP:
+note that PROCESS does not support "pasting" commands into code, meaning this step needs to be taken "traditionally" - through the menu of the SPSS. 
+A few important notes:
+X= cond
+y= thermometer_A/homogeneity/SDA
+W= PolOr
+covariates = Age, Sex, Edu, Income
+model number=1
+
+After inserting the variables, do the following:
+1. choose "options", and there mark "generate code for visualizing interactions" and "test X by M interaction(s)". 
+On the right side of the window, under "mean center...", choose "only continuous variables that define products". 
+Under "conditioning values", choose -1SD, Mean, +1SD. 
+PRESS CONTINUE
+2. Choose "multicategorical" button, and mark V for "variable X" to be multicategorical. 
+coding system should remain "indicator" - to get interactions for the comparisons with the control. 
+3. last, press the "long variable names" button, and mark V on the only option there. 
+
+IMPORTANT FOR READING THE OUTPUT:
+assuming you are using cond as the X, this is the way to read the different int supplied:
+X1 = control vs. no surprise no validation
+X2 = control vs. insinuated surprise no validation
+x3 = control vs. explicit surprise validation
+
+therefore, the interactions also follow the same rule:
+int_1 = interaction with PolOr for the comparison between control vs. no surprise no validation
+int_2 = interaction with PolOr for the comparison between control vs. insinuated surprise no validation
+int_3 = interaction with PolOr for the comparison between control vs. explicit surprise validation
+
+###The eppendix has more analyses, that requires computing the cond variable differently - all is in the syntax, and the logic of reading the outputs would be idetical. 
+
+
+

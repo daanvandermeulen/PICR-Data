@@ -1,0 +1,295 @@
+---
+title: "Geneticist - Cleaning Process"
+author: "Renana Atia"
+date: "1 03 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # clean the global environment
+cat ("\014")    #clean the R console
+
+#import file named fsir from computer into R. The file already has meaningful
+#names, scales were checked, and all unnecessary vars were removed. 
+library(rio)
+library(foreign)
+
+fsir <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/gen_data.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+fsir <- subset(fsir, uid!="")
+fsir <- fsir[!duplicated(fsir$uid),]
+
+library(haven)
+#fsir <- read_sav("Data/gen_data.sav")
+
+#remove test responses:
+fsir <- subset(fsir, fsir$uid!="4561981")
+fsir <- subset(fsir, fsir$uid!="1525788")
+fsir <- subset(fsir, fsir$uid!="105513718")
+fsir <- subset(fsir, fsir$uid!="105514073")
+fsir <- subset(fsir, fsir$uid!="105512424")
+
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cleaning 1}
+##SECOND WAVE DATA CLEANING
+
+#make one condition var.
+colnames(fsir)
+
+fsir$FL_7_DO_BEHAVIOR <- replace(fsir$FL_7_DO_BEHAVIOR, 
+                                   fsir$FL_7_DO_BEHAVIOR==1, 2)
+fsir$FL_7_DO_TRAITS <- replace(fsir$FL_7_DO_TRAITS, 
+                                fsir$FL_7_DO_TRAITS==1, 3)
+fsir$FL_7_DO_ATTITUDES <- replace(fsir$FL_7_DO_ATTITUDES, 
+                                   fsir$FL_7_DO_ATTITUDES==1, 4)
+
+#FL_7_DO_Control1 remains as 1. 
+
+fsir$cond <- dplyr::coalesce(fsir$FL_7_DO_Control1, 
+                                fsir$FL_7_DO_BEHAVIOR, 
+                                fsir$FL_7_DO_TRAITS,
+                                fsir$FL_7_DO_ATTITUDES) 
+                                #make separate conds vars into one factor. 
+
+fsir$cond <- as.factor(fsir$cond)
+is.factor(fsir$cond)
+levels(fsir$cond) <- c("Control", "No Surprise-No Validation", "Insinuated Surprise No Validation", "Explicit Surprise Validation")
+
+#now we clean all those who failed reading Qs. 
+
+#mikraa:
+#anything with T = not identified condition
+#anything with B = identified condition
+#anything with S = explicit surprise condition
+#anything with C = control condition
+colnames(fsir)
+
+library(dplyr)
+library(tidyr)
+fsir2w <- subset(fsir, select = -c(170:242, 1:5, 7:17, 
+                                     22:25, 27:30, 33:36, 38:41, 43:46, 49:52,
+                                     54:57, 59:62, 65:68, 70:73, 75:78, 81:84,
+                                     87:90))
+colnames(fsir2w)
+table(fsir2w$BReadingQ1a) #162 ANSWERS
+table(fsir2w$TReadingQ1a) #160
+table(fsir2w$AReadingQ1a) #162
+table(fsir2w$CReadingQ1a) #177
+
+#leaving only participants who were assigned to a condition. 
+fsir2w <- subset(fsir2w, cond!="")
+
+#661 STARTED ANSWERING THE QUESTIONNAIRE. 
+
+fsir2w <- subset(fsir2w, 
+                      BReadingQ1b==3 | TReadingQ1b==3 | AReadingQ1b==3 | CReadingQ1b==3 | 
+                        BReadingQ1a==3 | TReadingQ1a==3 | AReadingQ1a==3 | CReadingQ1a==3 |
+                       BReadingQ2b==2 | TReadingQ2b==2 | AReadingQ2b==2 | CReadingQ2b==2 | 
+                       BReadingQ2a==2 | TReadingQ2a==2 | AReadingQ2a==2 | CReadingQ2a==2 |
+                     CReadingQ3a==2 | CReadingQ3b==2)
+
+#make subset to continue working. it is enough to know who failed attcheck 2, to remove those
+#who failed attcheck 1 (without excluding control participants who did not get attcheck 1).
+fsir2w <- subset(fsir2w, attcheck2==5)
+
+                ###NEXT: TIME OF RESPONSE/CARELESSLONG###
+
+
+```
+
+
+```{r careless }
+library(ggplot2)
+library(ggpubr)
+#last screenings are for carelesslong and time of response. 
+colnames(fsir2w)
+class(fsir2w$Duration__in_seconds_)
+#the var is already numeric, which is what we need to proceed. if for some
+#reason it isn't, use the code below by removing the # sign. 
+
+fsir2w$DuraMin <- fsir2w$Duration__in_seconds_/60 
+                    #make the duration in minutes
+
+#time outliers:
+boxplot(fsir2w$DuraMin)$out
+boxplot(DuraMin ~ cond, fsir2w)$out
+
+Q <- quantile(fsir2w$DuraMin, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(fsir2w$DuraMin)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+fsir3.4w <- subset(fsir2w, fsir2w$DuraMin > (Q[1] - 1.5*iqr) & fsir2w$DuraMin < (Q[2]+1.5*iqr))
+
+table(fsir3.4w$cond, fsir3.4w$PolOr)
+
+######################
+#change the names of the manipilation check, to be indicative. 
+colnames(fsir3.4w)[colnames(fsir3.4w) == "mc_appreciation"] <- "mc_surprise"
+colnames(fsir3.4w)[colnames(fsir3.4w) == "ManipCheck_6"] <- "mc_appreciation"
+
+#manipulation check for pride - by cond
+plot12 <- ggplot(fsir3.4w, aes(cond, mc_pride)) +
+  geom_violin(aes(color = cond)) + geom_boxplot(width = 0.2, outlier.shape = NA) + theme(axis.text.x = element_text(size = 7)) + 
+   stat_summary(fun='mean', geom='point', size=2, col='red')+
+  stat_summary(fun = mean, geom = "text", col = "#661100",     # Add text to plot
+               vjust = 2, size=2.85, aes(label = (round(..y.., digits = 2))))+
+  scale_color_manual(values = c("#000000", "#0072B2", "#999999", "#56B4E9", "#009E73", "#D55E00")) +
+  xlab("Condition")+
+  ylab("mc pride")
+plot12
+
+#manipulation check for surprise - by cond
+plot12 <- ggplot(fsir3.4w, aes(cond, mc_surprise)) +
+  geom_violin(aes(color = cond)) + geom_boxplot(width = 0.2, outlier.shape = NA) + theme(axis.text.x = element_text(size = 7)) + 
+   stat_summary(fun='mean', geom='point', size=2, col='red')+
+  stat_summary(fun = mean, geom = "text", col = "#661100",     # Add text to plot
+               vjust = 2, size=2.85, aes(label = (round(..y.., digits = 2))))+
+  scale_color_manual(values = c("#000000", "#0072B2", "#999999", "#56B4E9", "#009E73", "#D55E00")) +
+  xlab("Condition")+
+  ylab("mc surprise")
+plot12
+
+#manipulation check for  - by cond
+plot12 <- ggplot(fsir3.4w, aes(cond, mc_discontempt)) +
+  geom_violin(aes(color = cond)) + geom_boxplot(width = 0.2, outlier.shape = NA) + theme(axis.text.x = element_text(size = 7)) + 
+   stat_summary(fun='mean', geom='point', size=2, col='red')+
+  stat_summary(fun = mean, geom = "text", col = "#661100",     # Add text to plot
+               vjust = 2, size=2.85, aes(label = (round(..y.., digits = 2))))+
+  scale_color_manual(values = c("#000000", "#0072B2", "#999999", "#56B4E9", "#009E73", "#D55E00")) +
+  xlab("Condition")+
+  ylab("mc contempt")
+plot12
+
+#manipulation check for  - by cond
+plot12 <- ggplot(fsir3.4w, aes(cond, mc_appreciation)) +
+  geom_violin(aes(color = cond)) + geom_boxplot(width = 0.2, outlier.shape = NA) + theme(axis.text.x = element_text(size = 7)) + 
+   stat_summary(fun='mean', geom='point', size=2, col='red')+
+  stat_summary(fun = mean, geom = "text", col = "#661100",     # Add text to plot
+               vjust = 2, size=2.85, aes(label = (round(..y.., digits = 2))))+
+  scale_color_manual(values = c("#000000", "#0072B2", "#999999", "#56B4E9", "#009E73", "#D55E00")) +
+  xlab("Condition")+
+  ylab("mc appreciation")
+plot12
+
+#compare means of manipulation check - mainly mc_surprise
+comp1 <- compare_means(
+  formula = mc_appreciation ~ cond,
+  fsir3.4w,
+  method = "anova",
+  paired = TRUE
+)
+comp1
+
+comp1 <- compare_means(
+  formula = mc_surprise ~ cond,
+  fsir3.4w,
+  method = "anova",
+  paired = TRUE
+)
+comp1
+
+comp1 <- compare_means(
+  formula = mc_discontempt ~ cond,
+  fsir3.4w,
+  method = "anova",
+  paired = TRUE
+)
+comp1
+#no differences between conditions in read emotions like contempt or appreciation (positive and negative), but there are differences as expected when it comes to reading surprise from the text.
+
+
+#####outliers 
+boxplot(Age ~ cond, fsir3.4w)$out #no outs
+boxplot(PolInterest ~ cond, fsir3.4w)$out #no outs
+boxplot(PolOr ~ cond, fsir3.4w)$out #no outs, looks different, but no sig diffs.
+boxplot(Edu ~ cond, fsir3.4w)$out #no outs, looks different, but no sig diffs. 
+boxplot(Income ~ cond, fsir3.4w)$out #no outs, looks different, but no sig diffs.
+boxplot(NewsConsum ~ cond, fsir3.4w)$out #no outs.
+
+
+table(fsir3.4w$cond)
+
+```
+
+```{r scales 2nd wave}
+#this chunk is for verifying and building the following scales:
+#surprise- stays 1 item "surprise_1". 
+#represent- stays 1 item "represent_R_1".
+#chacee - stays 1 item ""chance_acheive".
+#sdr
+#insim
+#backlash
+#rethink
+#homogeneity
+#competence
+#sda
+#openness to change
+#willingness to change
+#capability to change
+#media credibility
+#self definition as feminist
+#support for feminist views
+
+library(ltm)
+library(psych)
+
+                          ###HETEROGENEITY OF OUTGROUP###
+
+cronbach.alpha(fsir3.4w[, 57:61])
+
+fsir3.4w$homogeneity <- (fsir3.4w$homogen_1 + 
+                      fsir3.4w$homogen_2 + 
+                      fsir3.4w$homogen_3 + 
+                     fsir3.4w$homogen_4 + 
+                      fsir3.4w$homogen_5)/5 
+                        #create the var.
+
+                                 ###SDA###
+colnames(fsir3.4w)
+fsir3.4w <- fsir3.4w %>% relocate(attcheck2, .after = competence_4)
+cronbach.alpha(fsir3.4w[, 67:69])
+
+fsir3.4w$SDA <- (fsir3.4w$SDA_1 + 
+                      fsir3.4w$SDA_2 + 
+                      fsir3.4w$SDA_3)/3 
+                        #create the var.
+
+
+```
+
+```{r 2w less vars}
+
+colnames(fsir3.4w)
+
+fsir7.1 <- subset(fsir3.4w[, c(3, 5, 24:39, 41:65, 67:93, 95:98, 101:105)])
+
+
+```
+
+```{r extraction of file}
+#export datasets
+library(rio)
+library(foreign)
+library(datasets)
+library(careless)
+
+fsir7.1$RCL <- ifelse(fsir7.1$PolOr<4, '1', ifelse(fsir7.1$PolOr>4, '3', '2'))
+fsir7.1$RCL <- as.numeric(fsir7.1$RCL)
+is.numeric(fsir7.1$RCL)
+
+table(fsir7.1$RCL, fsir7.1$PolOr)
+table(fsir7.1$cond)
+
+toremove <- grep("^fsir7.1", ls(), 
+                 invert = TRUE, 
+                 value = TRUE)
+
+rm(list = c(toremove, "toremove"))
+
+export(fsir7.1, "C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Analysis/S2_df.sav")
+```
+

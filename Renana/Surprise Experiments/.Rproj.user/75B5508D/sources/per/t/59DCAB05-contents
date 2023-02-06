@@ -1,0 +1,828 @@
+---
+title: "full process in one place"
+author: "Renana Atia"
+date: "24 11 2022"
+output: html_document
+---
+
+##fsir_cleaning - first collection
+
+```{r setup, include=FALSE}
+rm(list = ls()) # clean the global environment
+cat ("\014")    #clean the R console
+
+
+#import file named "fsir1" from computer into R.
+#if needed, you can import using the code below - which I de-activated. 
+#Usually you'd pull the data through the folders of the project, just make sure to 
+#call the df "fsir" without a number.
+
+library(haven)
+#fsir <- read_sav("Data/fsir1.sav")
+
+library(rio)
+library(foreign)
+fsir <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/fsir1.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+##remove trials and previews
+fsir <- subset(fsir, fsir$userID!="b4e215ecaf21bc5aa33b631b8a1147e4")
+fsir <- subset(fsir, fsir$userID!="b67f4e6c171c1853c00e70b93f58e1c8")
+fsir <- subset(fsir, fsir$userID!="f58803b4e3dff1f0faa0c0b259572090")
+fsir <- subset(fsir, fsir$userID!="fe6f368dc8b7d9668742f15b91d8aac8")
+fsir <- subset(fsir, fsir$userID!="acbcefc36a2fb7b745d33253a4ccfc93")
+fsir <- subset(fsir, fsir$userID!="ae15ac2a8f52da4e8afab6bf6f6473b5")
+fsir <- subset(fsir, fsir$userID!="ae96b660367ac229d87006f9c6c93b56")
+fsir <- subset(fsir, fsir$userID!="b0a12d8a0d98e956569c56f0d5083c63")
+fsir <- subset(fsir, fsir$userID!="546caaf8f5e09ec3118e9463e67deff0")
+fsir <- subset(fsir, fsir$userID!="5f182df0b6904bf4034a57768f74a85e")
+fsir <- subset(fsir, fsir$userID!="8c86d16214e3f10d28eec3afee43d3cc")
+fsir <- subset(fsir, fsir$userID!="a7ce45a10e227a32543437d592028fb3")
+fsir <- subset(fsir, fsir$userID!="3a825c380c8f61fe0ea1b87bb210ed67")
+fsir <- subset(fsir, fsir$userID!="43d4544885dcd42a3c1820c6d18f9055")
+fsir <- subset(fsir, fsir$userID!="417095c74efd4752caf7dbe7d7e69fb3")
+
+
+#change name of Denial_5, which is an attention check item, 
+#if the name bothers you.
+library(plyr)
+fsir <- plyr::rename(fsir, replace = 
+                          c("Denial_5" = "attcheck"))
+fsir <- subset(fsir, select = -c(3:4, 7:17, 106:194))
+
+names(fsir)
+#check names again to see renaming worked. 
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cleaning 1}
+#this is for cleaning out all participants who faild attention check on the
+#first wave of quesionnaire. 
+#basically if participants answered anything but 4 on this attcheck item, 
+#they failed and should be removed. 
+
+#make subset to continue working. 
+fsir1 <- subset(fsir, attcheck==4)
+
+fsir1$DuraMin <- fsir1$Duration__in_seconds_/60 
+                    #make the duration in minutes
+#see the mean time of taking the survey to determine the cut-off. 
+mean(fsir1$DuraMin)
+median(fsir1$DuraMin)
+
+#function for getting mode:
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+getmode(fsir1$DuraMin)
+sd(fsir1$DuraMin, na.rm = TRUE)
+
+#identify outliers based on time of response and careless long answers.
+boxplot(fsir1$DuraMin)$out
+
+
+Q <- quantile(fsir1$DuraMin, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(fsir1$DuraMin)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range﻿
+fsir1.1 <- subset(fsir1, fsir1$DuraMin > (Q[1] - 1.5*iqr) & fsir1$DuraMin < (Q[2]+1.5*iqr))
+
+fsir1.1 <- subset(fsir1.1, select=-c(93))
+
+#from now on, all code would deal with fsir1, untill another subset is created. 
+```
+
+```{r cleaning 3}
+#this is the code to detect those who t answered in a pattern. 
+library(careless)
+
+#this is the long process of identifying long patterns of answers. I made sure to 
+#look into patterns in every scale separately, and those with 3 or more patterns 
+#were screened, alongside those with two who's response time was below 5 minutes. 
+#the full list of IDs to remove appears after the excel extraction codes. 
+
+fsir1.1$carelessLong <- longstring(fsir1.1)
+                    #checked long patterns of answers-over all the questionnaire.
+                     #handled later on
+
+#outliers omission based on careless long
+boxplot(fsir1.1$carelessLong)$out
+
+fsir2<-fsir1.1
+
+###current most updated version of DF is fsir2. 
+```
+
+```{r SUBSET}
+colnames(fsir2)
+fsir6 <- subset(fsir2[,c(6:89, 92:93)])
+
+```
+
+##SECOND WAVE DATA CLEANING
+
+```{r Cleaning 2}
+library(rio)
+library(foreign)
+
+library(haven)
+#fsir2w <- read_sav("Data/fsir 2 23122021.sav")
+
+fsir2w <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/fsir 2 23122021.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+
+fsir2w <- subset(fsir2w, userID!="")
+fsir2w <- fsir2w[!duplicated(fsir2w$userID),]
+table(fsir2w$Progress) #those who have progress rate of less than 58% didn't get to the first reading question. 
+fsir2w <- subset(fsir2w, Progress>57)
+
+#make one condition var.
+colnames(fsir2w)
+
+fsir2w$FL_7_DO_IDENT <- replace(fsir2w$FL_7_DO_IDENT, 
+                                fsir2w$FL_7_DO_IDENT==1, 2)
+fsir2w$FL_7_DO_EXPLICIT <- replace(fsir2w$FL_7_DO_EXPLICIT, 
+                                   fsir2w$FL_7_DO_EXPLICIT==1, 3)
+fsir2w$FL_7_DO_Control1 <- replace(fsir2w$FL_7_DO_Control1, 
+                                   fsir2w$FL_7_DO_Control1==1, 4)
+#FL_7_DO_NOIDENT remainf as 1. 
+
+fsir2w$cond <- dplyr::coalesce(fsir2w$FL_7_DO_NOT_IDENT, 
+                                fsir2w$FL_7_DO_IDENT, 
+                                fsir2w$FL_7_DO_EXPLICIT,
+                                fsir2w$FL_7_DO_Control1) 
+                                #make separate conds vars into one factor. 
+
+#now we clean all those who failed reading Qs. 
+#we start by making all the conditions' separate reading Qs into one var. 
+#since there were 4 block of conditions, 3 reading Qs, and 2 chance for each Q,
+#there is a lot to condense. 
+#we start with all the 1st chance Qs (Q1a, Q2a, Q3a). 
+
+#mikraa:
+#anything with T = not identified condition
+#anything with B = identified condition
+#anything with S = explicit surprise condition
+#anything with C = control condition
+
+library(dplyr)
+library(tidyr)
+fsir2w <- subset(fsir2w, select = -c(177:244, 1:6, 8:18, 241:244, 
+                                     20:23, 25:28, 31:34, 37:40, 42:45, 47:50,
+                                     53:56, 59:62, 64:67, 69:72, 75:78, 81:84,
+                                     86:89, 91:94, 97:100, 103:106))
+
+
+#would need this in the full-scale experiment. 
+fsir2w$Q1a <- dplyr::coalesce(fsir2w$TReadingQ1a, 
+                                fsir2w$BReadingQ1a, 
+                                fsir2w$SReadingQ1a,
+                                fsir2w$CReadingQ1a) #making all the readings 
+                                                  #1 into 1 var
+fsir2w <- fsir2w %>% relocate(Q1a, .before = TReadingQ1a)
+#relocating key var to better work with it and the others.
+
+
+fsir2w$Q2a <- dplyr::coalesce(fsir2w$TReadingQ2a, 
+                               fsir2w$BReadingQ2a, 
+                               fsir2w$SReadingQ2a,
+                               fsir2w$CReadingQ2a)
+
+fsir2w <- fsir2w %>% relocate(Q2a, .after = Q1a)
+#relocating key vars.
+
+#there is no Q3a to use
+fsir2w$Q3a <- dplyr::coalesce(fsir2w$TReadingQ3a, 
+                               fsir2w$BReadingQ3a, 
+                               fsir2w$SReadingQ3a,
+                               fsir2w$CReadingQ3a)
+fsir2w <- fsir2w %>% relocate(Q3a, .after = Q2a)
+
+#now 2nd chances would be reduced into 1 item each, and relocated (Q1b, Q2b, Q3b). 
+fsir2w$Q1b <- dplyr::coalesce(fsir2w$TReadingQ1b, 
+                               fsir2w$BReadingQ1b, 
+                               fsir2w$SReadingQ1b,
+                               fsir2w$CReadingQ1b)
+fsir2w <- fsir2w %>% relocate(Q1b, .after = Q1a)
+
+fsir2w$Q2b <- dplyr::coalesce(fsir2w$TReadingQ2b, 
+                               fsir2w$BReadingQ2b, 
+                               fsir2w$SReadingQ2b,
+                               fsir2w$CReadingQ2b)
+fsir2w <- fsir2w %>% relocate(Q2b, .after = Q2a)
+
+#there is no Q3a to use
+fsir2w$Q3b <- dplyr::coalesce(fsir2w$TReadingQ3b, 
+                               fsir2w$BReadingQ3b, 
+                               fsir2w$SReadingQ3b,
+                               fsir2w$CReadingQ3b)
+fsir2w <- fsir2w %>% relocate(Q3b, .after = Q3a)
+
+
+#now 2nd chances would be reduced into 1 item each, and relocated (Q1b, Q2b, Q3b). 
+fsir2w$Q1b <- dplyr::coalesce(fsir2w$TReadingQ1b, 
+                               fsir2w$BReadingQ1b, 
+                               fsir2w$SReadingQ1b,
+                               fsir2w$CReadingQ1b)
+fsir2w <- fsir2w %>% relocate(Q1b, .after = Q1a)
+
+fsir2w$Q2b <- dplyr::coalesce(fsir2w$TReadingQ2b, 
+                               fsir2w$BReadingQ2b, 
+                               fsir2w$SReadingQ2b,
+                               fsir2w$CReadingQ2b)
+fsir2w <- fsir2w %>% relocate(Q2b, .after = Q2a)
+
+#there is no Q3a to use
+fsir2w$Q3b <- dplyr::coalesce(fsir2w$TReadingQ3b, 
+                               fsir2w$BReadingQ3b, 
+                               fsir2w$SReadingQ3b,
+                               fsir2w$CReadingQ3b)
+fsir2w <- fsir2w %>% relocate(Q3b, .after = Q3a)
+
+
+#get rid of the unnecessary reading Qs columns.
+colnames(fsir2w)
+fsir2w <- subset(fsir2w, select = -c(9:32, 85:87))
+
+
+#now everyone who answered wrong, will get a zero. 
+fsir2w$Q1a[fsir2w$Q1a!=3] <- 0
+fsir2w$Q1b[fsir2w$Q1b!=3] <- 0
+fsir2w$Q2a[fsir2w$Q2a!=2] <- 0
+fsir2w$Q2b[fsir2w$Q2b!=2] <- 0
+fsir2w$Q3a[fsir2w$Q3a!=2] <- 0
+fsir2w$Q3b[fsir2w$Q3b!=2] <- 0
+
+
+#make a var for the sum of reading Qs scores. 
+fsir2w$F.P <- rowSums(fsir2w[,c("Q1a",
+                                       "Q1b",
+                                       "Q2a",
+                                       "Q2b", 
+                                       "Q3a", 
+                                       "Q3b")],na.rm = TRUE)
+
+#Making all the wrong response to the reading Qs equal to 0, 
+#so only 3 right responses would yield the sum grade of 5 or 7. 
+library(psych)
+table(fsir2w$F.P, fsir2w$cond)
+
+fsir3w <- subset(fsir2w, SDate2==1 & F.P==7 | SDate2==2 & F.P>=5)
+colnames(fsir3w)
+fsir3w <- subset(fsir3w, select = -c(75))
+
+#fsir2w.1 <- read_sav("Data/B.sav")
+#fsir2w.2 <- read_sav("Data/T.sav")
+#fsir2w.3 <- read_sav("Data/S.sav")
+
+#import 3 other data sets - for each cond
+fsir2w.1 <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/B.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+fsir2w.2 <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/T.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+fsir2w.3 <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/S.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+colnames(fsir2w.2)
+
+fsir2w.1 <- subset(fsir2w.1, select = -c(107:170, 1:5, 7:17, 19:22, 24:27, 
+                                         30:33, 36:39, 107:170))
+fsir2w.2 <- subset(fsir2w.2, select = -c(107:170, 1:5, 7:17, 19:22, 24:27, 
+                                         30:33, 36:39, 107:170))
+fsir2w.3 <- subset(fsir2w.3, select = -c(107:170, 1:5, 7:17, 19:22, 24:27, 
+                                         30:33, 36:39, 107:170))
+
+#rename reading Qs to match the master data set.
+library(dplyr)
+library(plyr)
+
+
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q1a = BReadingQ1a)
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q1b = BReadingQ1b)
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q2a = BReadingQ2a)
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q2b = BReadingQ2b)
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q3a = BReadingQ3a)
+fsir2w.1 <- dplyr::rename(fsir2w.1, Q3b = BReadingQ3b)
+
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q1a = TReadingQ1a)
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q1b = TReadingQ1b)
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q2a = TReadingQ2a)
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q2b = TReadingQ2b)
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q3a = TReadingQ3a)
+fsir2w.2 <- dplyr::rename(fsir2w.2, Q3b = TReadingQ3b)
+
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q1a = SReadingQ1a)
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q1b = SReadingQ1b)
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q2a = SReadingQ2a)
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q2b = SReadingQ2b)
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q3a = SReadingQ3a)
+fsir2w.3 <- dplyr::rename(fsir2w.3, Q3b = SReadingQ3b)
+
+#now everyone who answered wrong, will get a zero. 
+fsir2w.1$Q1a[fsir2w.1$Q1a!=3] <- 0
+fsir2w.1$Q1b[fsir2w.1$Q1b!=3] <- 0
+fsir2w.1$Q2a[fsir2w.1$Q2a!=2] <- 0
+fsir2w.1$Q2b[fsir2w.1$Q2b!=2] <- 0
+fsir2w.1$Q3a[fsir2w.1$Q3a!=2] <- 0
+fsir2w.1$Q3b[fsir2w.1$Q3b!=2] <- 0
+
+#now everyone who answered wrong, will get a zero. 
+fsir2w.2$Q1a[fsir2w.2$Q1a!=3] <- 0
+fsir2w.2$Q1b[fsir2w.2$Q1b!=3] <- 0
+fsir2w.2$Q2a[fsir2w.2$Q2a!=2] <- 0
+fsir2w.2$Q2b[fsir2w.2$Q2b!=2] <- 0
+fsir2w.2$Q3a[fsir2w.2$Q3a!=2] <- 0
+fsir2w.2$Q3b[fsir2w.2$Q3b!=2] <- 0
+
+#now everyone who answered wrong, will get a zero. 
+fsir2w.3$Q1a[fsir2w.3$Q1a!=3] <- 0
+fsir2w.3$Q1b[fsir2w.3$Q1b!=3] <- 0
+fsir2w.3$Q2a[fsir2w.3$Q2a!=2] <- 0
+fsir2w.3$Q2b[fsir2w.3$Q2b!=2] <- 0
+fsir2w.3$Q3a[fsir2w.3$Q3a!=2] <- 0
+fsir2w.3$Q3b[fsir2w.3$Q3b!=2] <- 0
+
+#make a var for the sum of reading Qs scores. 
+fsir2w.1$F.P <- rowSums(fsir2w.1[,c("Q1a",
+                                       "Q1b",
+                                       "Q2a",
+                                       "Q2b")],na.rm = TRUE)
+
+fsir2w.2$F.P <- rowSums(fsir2w.2[,c("Q1a",
+                                       "Q1b",
+                                       "Q2a",
+                                       "Q2b")],na.rm = TRUE)
+fsir2w.3$F.P <- rowSums(fsir2w.3[,c("Q1a",
+                                       "Q1b",
+                                       "Q2a",
+                                       "Q2b")],na.rm = TRUE)
+
+library(plyr)
+#gather all data sets into one:
+completeSet2.b <- rbind.fill(fsir3w,fsir2w.1)
+completeSet2.b.t <- rbind.fill(completeSet2.b,fsir2w.2)
+completeSet2.b.t.s <- rbind.fill(completeSet2.b.t,fsir2w.3)
+
+colnames(completeSet2.b.t.s)
+
+fsir2w <- completeSet2.b.t.s
+table(fsir2w$F.P, fsir2w$cond)
+
+#if only right answers are 1s, and since in the 2nd swcond wave people saw only 2 Qs, 
+#only those who get a score of 5 or 7 should remain. 
+
+#######DOUBLED######
+
+#Making all the wrong response to the reading Qs equal to 0, 
+#so only 3 right responses would yield the sum grade of 3. 
+
+#FOR THE SURVEY COMPANY - ALL FAILED RESPONDENTS.
+
+fsir3w.1 <- subset(completeSet2.b.t.s, F.P>=5)
+table(fsir3w.1$F.P, fsir3w.1$cond)
+table(fsir3w.1$cond)
+
+#from now, fsir3w is the data to be used. later on we will merge the 
+#latest version of this second wave data with fsir2 (the most updated 
+#from the first wave data).
+```
+
+```{r attcheck 2nd wave}
+#now we screen those who failed attention checks. 
+fsir3.1w <- subset(fsir3w.1, attcheck1==2 | is.na(attcheck1))
+#this takes both those who were right, and those who didn't see the Q-from
+#the control group. 
+fsir3.2w <- subset(fsir3.1w, attcheck2==5 | is.na(attcheck2))
+
+                ###NEXT: TIME OF RESPONSE/CARELESSLONG###
+```
+
+```{r careless 2nd wave}
+
+###now we check and create scales. 
+
+fsir4w <- subset(fsir3.2w, userID!="")
+
+```
+
+```{r 2w normality and outliers}
+
+### GENERAL DESRIPTION ###
+library(report)
+library(dplyr)
+library(sjPlot)
+library(apaTables)
+library("writexl")
+
+#######FIGURE OUT WHO STAYS#######
+colnames(fsir4w)
+colnames(fsir4w)[61] <- "Age2"
+colnames(fsir4w)[62] <- "Sex2"
+colnames(fsir4w)[63] <- "Region2"
+colnames(fsir4w)[64] <- "MaritalS2"
+colnames(fsir4w)[66] <- "Edu2"
+colnames(fsir4w)[67] <- "Income2"
+colnames(fsir4w)[68] <- "NewsConsumption2"
+colnames(fsir4w)[69] <- "PoliticalInterest2"
+colnames(fsir4w)[70] <- "relig2"
+colnames(fsir4w)[71] <- "PolOr2"
+fsir7.1 <- subset(fsir4w[, c(9:27, 29:71, 74:75)])
+fsir7.1 <- fsir7.1[!duplicated(fsir7.1$userID),]
+fsir7.1$careless2 <- longstring(fsir7.1)
+
+
+```
+
+
+```{r merge of both files}
+
+#export datasets
+library(rio)
+library(foreign)
+library(datasets)
+
+collect1 <- merge(fsir6, fsir7.1, by = "userID")
+collect1 <- collect1[!duplicated(collect1$userID),]
+collect1 <- subset(collect1, userID!="") 
+```
+
+
+```{r export}
+toremove <- grep("^collect1", ls(), 
+                 invert = TRUE, 
+                 value = TRUE)
+
+rm(list = c(toremove, "toremove"))
+
+#export(collect1, "C:/Everything R/DATA TRIALS - FSIR/Replication materials/REP/check #knit/collect1.recon24112022.sav")
+
+
+```
+
+##fsir_cleaning - first collection
+
+```{r 2setup, include=FALSE}
+cat ("\014")    #clean the R console
+
+#import file named fsir from computer into R. The file already has meaningful
+#names, scales were checked, and all unnecessary vars were removed. 
+library(rio)
+library(foreign)
+
+#fsir <- read_sav("Data/lfsira.sav")
+fsir <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/lfsira.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+
+#change name of Denial_5, which is an attention check item, 
+#if the name bothers you.
+library(plyr)
+colnames(fsir)
+fsir <- plyr::rename(fsir, replace = 
+                          c("Denial_5" = "attcheck"))
+fsir <- subset(fsir, select = -c(3:4, 7:17, 107:197))
+names(fsir)
+#check names again to see renaming worked. 
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r 2cleaning 1}
+#this is for cleaning out all participants who faild attention check on the
+#first wave of quesionnaire. 
+#basically if participants answered anything but 4 on this attcheck item, 
+#they failed and should be removed. 
+
+#make subset to continue working. 
+fsir1 <- subset(fsir, attcheck==4)
+#from now on, all code would deal with fsir1, until another subset is created. 
+```
+
+```{r 2cleaning 2}
+#this is the code to detect those who took too long or too little time.
+colnames(fsir1)
+
+class(fsir1$Duration__in_seconds_)
+#the var is already numeric, which is what we need to proceed. if for some
+#reason it isn't, use the code below by removing the # sign. 
+
+#pisrSub[4] <- lapply(pisrSub[3], as.numeric) #make the duration numeric
+
+fsir1$DuraMin <- fsir1$Duration__in_seconds_/60 
+                    #make the duration in minutes
+#see the mean time of taking the survey to determine the cut-off. 
+mean(fsir1$DuraMin)
+median(fsir1$DuraMin)
+
+#function for getting mode:
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+getmode(fsir1$DuraMin)
+sd(fsir1$DuraMin, na.rm = TRUE)
+
+#identify outliers based on time of response and careless long answers.
+boxplot(fsir1$DuraMin)$out
+
+
+Q <- quantile(fsir1$DuraMin, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(fsir1$DuraMin)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range﻿
+fsir1.1 <- subset(fsir1, fsir1$DuraMin > (Q[1] - 1.5*iqr) & fsir1$DuraMin < (Q[2]+1.5*iqr))
+
+```
+
+```{r 2cleaning 3}
+#this is the code to detect those who t answered in a pattern. 
+colnames(fsir1.1)
+
+library(careless)
+#this is the long process of identifying long patterns of answers. I made sure to 
+#look into patterns in every scale separately, and those with 3 or more patterns 
+#were screened, alongside those with two who's response time was below 5 minutes. 
+#the full list of IDs to remove appears after the excel extraction codes. 
+
+fsir1.1$carelessLong <- longstring(fsir1.1)
+                    #checked long patterns of answers-over all the questionnaire.
+
+#outliers omission based on careless long
+boxplot(fsir1.1$carelessLong)$out
+
+#i'm creating subs for each scale, to measure careless long on each scale
+#separately. the rational behind this - if a scale has 5 items, and the longest pattern for a respondent is 5. 
+fsir1.2 <- fsir1.1
+
+#NOT APPLICABLE FOR THIS VERSION:
+
+```
+
+```{r 2more}
+
+colnames(fsir1.2)
+fsir6 <- subset(fsir1.2[,-c(3:5)])
+
+```
+
+##SECOND WAVE DATA CLEANING
+
+```{r 2Cleaning 2}
+library(rio)
+library(foreign)
+
+fsir2w <- import("C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Data/lfsirb.sav", 
+                  to.data.frame = TRUE, stringsAsFactors = TRUE, header = TRUE)
+
+fsir2w <- subset(fsir2w, userID!="")
+fsir2w <- fsir2w[!duplicated(fsir2w$userID),]
+table(fsir2w$Progress) #those who have progress rate of less than 58% didn't get to the first reading question. 
+
+#make one condition var.
+colnames(fsir2w)
+
+fsir2w$FL_7_DO_IDENT <- replace(fsir2w$FL_7_DO_IDENT, 
+                                fsir2w$FL_7_DO_IDENT==1, 2)
+fsir2w$FL_7_DO_EXPLICIT <- replace(fsir2w$FL_7_DO_EXPLICIT, 
+                                   fsir2w$FL_7_DO_EXPLICIT==1, 3)
+fsir2w$FL_7_DO_Control1 <- replace(fsir2w$FL_7_DO_Control1, 
+                                   fsir2w$FL_7_DO_Control1==1, 4)
+#FL_7_DO_NOIDENT remainf as 1. 
+
+fsir2w$cond <- dplyr::coalesce(fsir2w$FL_7_DO_NOT_IDENT, 
+                                fsir2w$FL_7_DO_IDENT, 
+                                fsir2w$FL_7_DO_EXPLICIT,
+                                fsir2w$FL_7_DO_Control1) 
+                                #make separate conds vars into one factor. 
+
+#now we clean all those who failed reading Qs. 
+#we start by making all the conditions' separate reading Qs into one var. 
+#since there were 4 block of conditions, 3 reading Qs, and 2 chance for each Q,
+#there is a lot to condense. 
+#we start with all the 1st chance Qs (Q1a, Q2a, Q3a). 
+
+#mikraa:
+#anything with T = not identified condition
+#anything with B = identified condition
+#anything with S = explicit surprise condition
+#anything with C = control condition
+colnames(fsir2w)
+
+library(dplyr)
+library(tidyr)
+fsir2w <- subset(fsir2w, select = -c(159:231, 1:5, 7:18, 
+                                     20:23, 25:28, 31:34, 36:39, 41:44, 47:50,
+                                     52:55, 57:60, 63:66, 68:71, 73:76, 79:82,
+                                     85:88, 142:144, 149))
+
+
+#would need this in the full-scale experiment. 
+fsir2w$Q1a <- dplyr::coalesce(fsir2w$TReadingQ1a, 
+                                fsir2w$BReadingQ1a, 
+                                fsir2w$SReadingQ1a,
+                                fsir2w$CReadingQ1a) #making all the readings 
+                                                  #1 into 1 var
+fsir2w <- fsir2w %>% relocate(Q1a, .before = TReadingQ1a)
+#relocating key var to better work with it and the others.
+
+
+fsir2w$Q2a <- dplyr::coalesce(fsir2w$TReadingQ2a, 
+                               fsir2w$BReadingQ2a, 
+                               fsir2w$SReadingQ2a,
+                               fsir2w$CReadingQ2a)
+
+fsir2w <- fsir2w %>% relocate(Q2a, .after = Q1a)
+#relocating key vars.
+
+#there is no Q3a to use
+fsir2w$Q3a <- dplyr::coalesce(fsir2w$CReadingQ3a)
+fsir2w <- fsir2w %>% relocate(Q3a, .after = Q2a)
+
+#now 2nd chances would be reduced into 1 item each, and relocated (Q1b, Q2b, Q3b). 
+fsir2w$Q1b <- dplyr::coalesce(fsir2w$TReadingQ1b, 
+                               fsir2w$BReadingQ1b, 
+                               fsir2w$SReadingQ1b,
+                               fsir2w$CReadingQ1b)
+fsir2w <- fsir2w %>% relocate(Q1b, .after = Q1a)
+
+fsir2w$Q2b <- dplyr::coalesce(fsir2w$TReadingQ2b, 
+                               fsir2w$BReadingQ2b, 
+                               fsir2w$SReadingQ2b,
+                               fsir2w$CReadingQ2b)
+fsir2w <- fsir2w %>% relocate(Q2b, .after = Q2a)
+
+#there is no Q3a to use
+fsir2w$Q3b <- dplyr::coalesce(fsir2w$CReadingQ3b)
+fsir2w <- fsir2w %>% relocate(Q3b, .after = Q3a)
+
+
+#get rid of the unnecessary reading Qs columns.
+colnames(fsir2w)
+fsir2w <- subset(fsir2w, select = -c(9:26))
+
+
+#now everyone who answered wrong, will get a zero. 
+fsir2w$Q1a[fsir2w$Q1a!=3] <- 0
+fsir2w$Q1b[fsir2w$Q1b!=3] <- 0
+fsir2w$Q2a[fsir2w$Q2a!=2] <- 0
+fsir2w$Q2b[fsir2w$Q2b!=2] <- 0
+fsir2w$Q3a[fsir2w$Q3a!=2] <- 0
+fsir2w$Q3b[fsir2w$Q3b!=2] <- 0
+
+
+#make a var for the sum of reading Qs scores. 
+fsir2w$F.P <- rowSums(fsir2w[,c("Q1a",
+                                       "Q1b",
+                                       "Q2a",
+                                       "Q2b", 
+                                       "Q3a", 
+                                       "Q3b")],na.rm = TRUE)
+
+#Making all the wrong response to the reading Qs equal to 0, 
+library(psych)
+table(fsir2w$F.P, fsir2w$cond)
+
+fsir3w <- subset(fsir2w, cond==4 & F.P==7 | cond==3 & F.P==5 | 
+                   cond==2 & F.P==5| cond==1 & F.P==5)
+
+```
+
+```{r 2attcheck 2nd wave}
+
+#from now on, there are only those who were fairly attentive.
+
+#now we screen those who failed attention checks. 
+fsir3.1w <- subset(fsir3w, attcheck1==2 | is.na(attcheck1))
+#this takes both those who were right, and those who didn't see the Q-from
+#the control group. 
+fsir3.2w <- subset(fsir3.1w, attcheck2==5 | is.na(attcheck2))
+
+                ###NEXT: TIME OF RESPONSE/CARELESSLONG###
+```
+
+```{r 2careless 2nd wave}
+
+fsir3.4w <- subset(fsir3.2w, userID!="")
+
+table(fsir3.4w$cond)
+
+fsir4w <- fsir3.4w
+
+```
+
+```{r 2 2w normality and outliers}
+
+### GENERAL DESRIPTION ###
+library(report)
+library(dplyr)
+library(sjPlot)
+library(apaTables)
+library("writexl")
+
+#######CHANGE NAME OF DEMOGRAPHIC COLUMNS#######
+colnames(fsir4w)
+
+colnames(fsir4w)[61] <- "Age2"
+colnames(fsir4w)[62] <- "Sex2"
+colnames(fsir4w)[63] <- "Region2"
+colnames(fsir4w)[64] <- "MaritalS2"
+colnames(fsir4w)[65] <- "Edu2"
+colnames(fsir4w)[66] <- "Income2"
+colnames(fsir4w)[67] <- "NewsConsumption2"
+colnames(fsir4w)[68] <- "PoliticalInterest2"
+colnames(fsir4w)[69] <- "relig2"
+colnames(fsir4w)[2] <- "PolOr2"
+colnames(fsir4w)[28] <- "attcheck1b"
+fsir7.1 <- subset(fsir4w[, c(2, 9:69, 73:74)])
+
+
+```
+
+```{r 2MERGE FILES}
+#the purpose here is to remove outliers for each condition separately, seeing
+#every condition as a unite. 
+
+#INNER JOIN
+lfsir <- merge(fsir7.1, fsir6, by = "userID")
+
+#export(lfsir, "C:/Everything R/DATA TRIALS - FSIR/LFSIR/lfsir_full.recon14112022.sav")
+
+
+###DO NOT TOUCH ANYTHING ABOVE.
+#CLEAN. 
+
+lfsir <- subset(lfsir[-c(104), ] ) #remove duplicate with ID #910f4390a1598e5c6041973e643208c0
+
+colnames(lfsir)
+
+
+```
+
+```{r remove exess dfs}
+#export(lfsir2, "C:/Everything R/DATA TRIALS - FSIR/Replication materials/REP/check #knit/lfsir_no_outs.recon14112022.sav")
+
+toremove <- grep("^lfsir|^collect1$", ls(), 
+                 invert = TRUE, 
+                 value = TRUE)
+
+rm(list = c(toremove, "toremove"))
+colnames(collect1)
+colnames(lfsir)
+
+```
+
+```{r merge collections}
+library(ltm)
+lfsirfull <- subset(lfsir, select = c(1:21, 23:52, 55:64, 67:105, 107:144, 146:150))
+collect2.m <- subset(collect1, select = -c(40, 79, 86, 136, 137, 142, 150))
+fsir <- rbind(collect2.m, lfsirfull)
+fsir <- fsir[!duplicated(fsir$userID),]
+fsir <- subset(fsir, PolOr2<=7)
+
+colnames(fsir)
+
+fsir$heterogeneity_4 <- 7-fsir$heterogeneity_4
+fsir$heterogeneity_5 <- 7-fsir$heterogeneity_5
+
+cronbach.alpha(fsir[,112:116], na.rm = TRUE)
+fsir$homogeneity <- (fsir$heterogeneity_1+
+                              fsir$heterogeneity_2 +
+                              fsir$heterogeneity_3 +
+                              fsir$heterogeneity_4 +
+                              fsir$heterogeneity_5)/5
+
+colnames(fsir)
+fsir <- fsir %>% relocate(attcheck2, .after = competence_4)
+
+cronbach.alpha(fsir[,122:124], na.rm = TRUE)
+fsir$SDA <- (fsir$SDA_1 + 
+                      fsir$SDA_2 + 
+                      fsir$SDA_3)/3 
+                        #create the var.
+
+table(fsir$cond)
+
+#reorder cond levels, and rename:
+fsir$cond <- factor(fsir$cond, levels=c('4', '1', '2', '3'))
+levels(fsir$cond) <- c("Control", "No Surprise-No Validation", "Insinuated surprise no validation", "Explicit Surprise validation")
+
+fsir <- plyr::rename(fsir, replace = 
+                          c("thermomerer_A" = "thermometer_A"))
+
+#do further cleaning on spss.
+#you may have to change the directory here. 
+
+export(fsir, "C:/Everything R/DATA TRIALS - FSIR/Effects of Framing Counter Stereotypes - Replication Materials/r-project-template-based/Suprise Experiments/Analysis/S1.4_df.sav")
+
+toremove <- grep("^fsir", ls(), 
+                 invert = TRUE, 
+                 value = TRUE)
+
+rm(list = c(toremove, "toremove"))
+
+```
